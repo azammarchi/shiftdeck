@@ -7,7 +7,7 @@
     "setup": "node scripts/setup.js",
     "start": "node server.js",
     "test": "npm run test:engines && npm run test:e2e",
-    "test:engines": "node --test tests/engines.test.js",
+    "test:engines": "node --test tests/engines.test.js tests/zip.test.js",
     "test:e2e": "playwright test",
     "test:install": "playwright install webkit firefox chromium"
   },

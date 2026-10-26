@@ -1,8 +1,10 @@
 // The tools, used the way a person would: pick a tool, add files, set the
 // options, convert, download. The downloads are checked with PDFKit.
+const fs = require('fs');
 const { test, expect } = require('./fixtures');
 const { openApp, pickTool, addFiles, fileNames, resultNames, convert, download } = require('./helpers');
 const { info, engines } = require('../engines');
+const { readZip } = require('../lib/zip');
 const { PASSWORD } = require('./sample-files');
 
 test.beforeEach(async ({ page }) => openApp(page));
@@ -31,13 +33,31 @@ test('reorder files from the keyboard before making a PDF from images', async ({
   expect((await info(file)).pages.map((p) => p.size)).toEqual([[842, 595], [595, 842]]);
 });
 
-test('split by page ranges', async ({ page }) => {
+test('split by page ranges, then download every part as one ZIP', async ({ page }) => {
   await pickTool(page, 'split');
   await addFiles(page, ['three-pages.pdf']);
   await page.locator('#rangesInput').fill('1-2, 3');
   await convert(page);
   expect(await resultNames(page)).toEqual(['three-pages-pages-1-2.pdf', 'three-pages-page-3.pdf']);
-  await expect(page.locator('#downloadAllButton')).toBeVisible();
+
+  const started = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Download all (ZIP)' }).click();
+  const zip = await started;
+  expect(zip.suggestedFilename()).toBe('three-pages-split.zip');
+  const saved = test.info().outputPath('parts.zip');
+  await zip.saveAs(saved);
+  const files = readZip(fs.readFileSync(saved));
+  expect(Object.keys(files)).toEqual(['three-pages-pages-1-2.pdf', 'three-pages-page-3.pdf']);
+  const part = test.info().outputPath('part.pdf');
+  fs.writeFileSync(part, files['three-pages-pages-1-2.pdf']);
+  expect((await info(part)).pages).toHaveLength(2);
+});
+
+test('a single result has no ZIP link', async ({ page }) => {
+  await addFiles(page, ['three-pages.pdf', 'two-pages.pdf']);
+  await convert(page);
+  await expect(page.locator('#results')).toBeVisible();
+  await expect(page.locator('#downloadAllLink')).toBeHidden();
 });
 
 test('a wrong page range explains what to fix', async ({ page }) => {

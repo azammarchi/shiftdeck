@@ -8,9 +8,11 @@ const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { once } = require('events');
 const { pipeline } = require('stream/promises');
 const { exec } = require('child_process');
 const { TOOLS, engines, runTool } = require('./engines');
+const { writeZip } = require('./lib/zip');
 
 const PORT = process.env.PORT !== undefined ? Number(process.env.PORT) : 5174;
 const ROOT = path.join(__dirname, 'public');
@@ -72,6 +74,7 @@ function handleEvents(req, res) {
 // ---------------------------------------------------------------------------
 const uploads = new Map(); // id → { path, name, size }
 const outputs = new Map(); // id → { path, name, size }
+const bundles = new Map(); // id → { name, outputs: [output ids] }
 const ID_PATTERN = /^[0-9a-f-]{36}$/;
 
 function sendJson(res, status, value) {
@@ -160,27 +163,55 @@ async function runToolRequest(req, res, toolName) {
     outputs.set(id, entry);
     listed.push({ id, name: entry.name, size });
   }
-  sendJson(res, 200, { outputs: listed, warnings: result.warnings });
+  // Several results can also be downloaded together, as one ZIP.
+  let bundle = null;
+  if (listed.length > 1) {
+    const first = inputs[0].name;
+    const stem = path.basename(first, path.extname(first)).replace(/[^\p{L}\p{N} ._()-]+/gu, '_').trim().slice(0, 80) || 'shiftdeck';
+    bundle = { id: crypto.randomUUID(), name: `${stem}-${toolName}.zip` };
+    bundles.set(bundle.id, { name: bundle.name, outputs: listed.map((output) => output.id) });
+  }
+  sendJson(res, 200, { outputs: listed, bundle, warnings: result.warnings });
+}
+
+function attachment(name) {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 
 function sendOutput(res, id) {
   const output = outputs.get(id);
   if (!output) return sendError(res, 404, 'missingFile', 'No such result');
-  const ascii = output.name.replace(/[^\x20-\x7e]|["\\]/g, '_');
   res.writeHead(200, {
     'Content-Type': DOWNLOAD_TYPES[path.extname(output.name).toLowerCase()] || 'application/octet-stream',
     'Content-Length': output.size,
-    'Content-Disposition': `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(output.name)}`,
+    'Content-Disposition': attachment(output.name),
     'Cache-Control': 'no-store',
   });
   fs.createReadStream(output.path).pipe(res);
 }
 
+// The ZIP is written as it is sent, one file at a time, waiting for the
+// connection when it falls behind.
+async function sendBundle(res, id) {
+  const bundle = bundles.get(id);
+  const files = bundle?.outputs.map((outputId) => outputs.get(outputId)).filter(Boolean);
+  if (!files?.length) return sendError(res, 404, 'missingFile', 'No such result');
+  res.writeHead(200, {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': attachment(bundle.name),
+    'Cache-Control': 'no-store',
+  });
+  await writeZip(files, (buffer) => (res.write(buffer) ? undefined : once(res, 'drain')));
+  res.end();
+}
+
 // GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs } } }
 // PUT    /api/uploads?name=…   ← file bytes → { id, name, size }
 // DELETE /api/uploads/:id
-// POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], warnings }
+// POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], bundle: { id, name } | null, warnings }
 // GET    /api/outputs/:id      → the result, as a download
+// GET    /api/bundles/:id      → all the results of one run, as a ZIP
 async function handleApi(req, res, url) {
   const [section, id, extra] = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
   if (extra) return sendError(res, 404, 'notFound', 'Not found');
@@ -198,6 +229,7 @@ async function handleApi(req, res, url) {
     return runToolRequest(req, res, id);
   }
   if (section === 'outputs' && ID_PATTERN.test(id || '') && req.method === 'GET') return sendOutput(res, id);
+  if (section === 'bundles' && ID_PATTERN.test(id || '') && req.method === 'GET') return sendBundle(res, id);
   sendError(res, 404, 'notFound', 'Not found');
 }
 

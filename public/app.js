@@ -222,7 +222,7 @@ async function runTool() {
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(body.error || response.statusText), { code: body.code });
-    showResults(body.outputs, body.warnings || []);
+    showResults(body.outputs, body.bundle, body.warnings || []);
   } catch (err) {
     const message = err instanceof TypeError ? t('serverDown') : errorText(err.code, err.message, { name: usable[0]?.name });
     setStatus(message, 'error');
@@ -232,7 +232,7 @@ async function runTool() {
   }
 }
 
-function showResults(outputs, warnings) {
+function showResults(outputs, bundle, warnings) {
   const list = $('resultList');
   list.replaceChildren();
   for (const output of outputs) {
@@ -258,19 +258,17 @@ function showResults(outputs, warnings) {
     row.append(info, link);
     list.append(row);
   }
-  $('downloadAllButton').hidden = outputs.length < 2;
+  // Several results come together as one ZIP, made by the server.
+  const all = $('downloadAllLink');
+  all.hidden = !bundle;
+  if (bundle) {
+    all.href = `/api/bundles/${bundle.id}`;
+    all.download = bundle.name;
+  }
   $('results').hidden = false;
   const text = [t('done', { count: outputs.length })];
   if (warnings.includes('weakEncryption')) text.push(t('weakEncryptionNotice'));
   setStatus(text.join(' '), warnings.length ? 'warning' : 'success');
-}
-
-// Browsers may hold back many downloads started at once, so they go one by one.
-async function downloadAll() {
-  for (const link of $('resultList').querySelectorAll('a[download]')) {
-    link.click();
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -357,7 +355,6 @@ async function init() {
     e.preventDefault();
     if (!state.busy) runTool();
   });
-  $('downloadAllButton').addEventListener('click', downloadAll);
 
   await loadStatus();
   selectTool(document.querySelector('input[name="tool"]:checked').value);
