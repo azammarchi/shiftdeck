@@ -168,6 +168,21 @@ main {
 .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-actions { display: flex; gap: 2px; flex: none; }
 
+/* Organize pages: a grid of page cards with a thumbnail and actions. */
+.field-label { font-weight: 600; }
+.page-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.page-card { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--panel-hi); border: 1px solid transparent; border-radius: 10px; cursor: grab; }
+.page-card.dragging { opacity: 0.4; }
+.page-card.drop-target { border-color: var(--accent); }
+.page-card.deleted .thumb { opacity: 0.25; }
+.page-card.deleted .page-number { text-decoration: line-through; }
+.thumb { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 6px; background: var(--bg); }
+.thumb img { max-width: 100%; max-height: 100%; transition: transform 0.15s; box-shadow: 0 1px 4px rgb(0 0 0 / 40%); }
+.page-number { font-size: 13px; color: var(--muted); text-align: center; }
+.page-actions { display: flex; justify-content: center; gap: 0; flex-wrap: wrap; }
+.page-actions .icon-button { width: 26px; height: 26px; }
+.page-actions .icon { width: 16px; height: 16px; }
+
 .options { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--panel-hi); padding-top: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label:first-child { font-weight: 600; }

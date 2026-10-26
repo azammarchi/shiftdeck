@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const { once } = require('events');
 const { pipeline } = require('stream/promises');
 const { exec } = require('child_process');
-const { TOOLS, engines, runTool } = require('./engines');
+const { TOOLS, engines, runTool, pageThumbnails } = require('./engines');
 const { writeZip } = require('./lib/zip');
 
 const PORT = process.env.PORT !== undefined ? Number(process.env.PORT) : 5174;
@@ -134,6 +134,35 @@ async function receiveUpload(req, res, url) {
   sendJson(res, 200, { id, name, size });
 }
 
+// The pages of an uploaded PDF, each with a thumbnail served like a result.
+// Rendered once per upload; later requests reuse them.
+async function sendPages(res, id) {
+  const upload = uploads.get(id);
+  if (!upload) return sendError(res, 404, 'missingFile', 'A file is no longer available, add it again');
+  if (!upload.pages) {
+    upload.pages = (async () => {
+      const dir = path.join(WORK_DIR, 'thumbnails', id);
+      await fsp.mkdir(dir, { recursive: true });
+      const pages = await pageThumbnails(upload.path, dir);
+      return Promise.all(pages.map(async (page, i) => {
+        const imageId = crypto.randomUUID();
+        const { size } = await fsp.stat(page.image);
+        outputs.set(imageId, { path: page.image, name: `page-${i + 1}.png`, size });
+        return { page: i + 1, size: page.size, rotation: page.rotation, image: `/api/outputs/${imageId}` };
+      }));
+    })();
+    // A failure isn't kept, so the next request tries again.
+    upload.pages.catch(() => { upload.pages = null; });
+  }
+  let pages;
+  try {
+    pages = await upload.pages;
+  } catch (err) {
+    return sendError(res, 422, err.code || 'failed', err.message);
+  }
+  sendJson(res, 200, { pages });
+}
+
 async function removeUpload(res, id) {
   const upload = uploads.get(id);
   uploads.delete(id);
@@ -212,17 +241,19 @@ async function sendBundle(res, id) {
 // GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs, ...details } } }
 // PUT    /api/uploads?name=…   ← file bytes → { id, name, size }
 // DELETE /api/uploads/:id
+// GET    /api/uploads/:id/pages → { pages: [{ page, size, rotation, image: url }] } (PDFs)
 // POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], bundle: { id, name } | null, warnings }
 // GET    /api/outputs/:id      → the result, as a download
 // GET    /api/bundles/:id      → all the results of one run, as a ZIP
 async function handleApi(req, res, url) {
-  const [section, id, extra] = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
+  const [section, id, extra, more] = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
+  if (section === 'uploads' && ID_PATTERN.test(id || '') && extra === 'pages' && !more && req.method === 'GET') return sendPages(res, id);
   if (extra) return sendError(res, 404, 'notFound', 'Not found');
 
   if (section === 'status' && !id && req.method === 'GET') {
     const tools = {};
     for (const [name, tool] of Object.entries(TOOLS)) {
-      tools[name] = { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1, needs: tool.needs(), ...(tool.details ? await tool.details() : {}) };
+      tools[name] = { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1, maxFiles: tool.maxFiles || null, needs: tool.needs(), ...(tool.details ? await tool.details() : {}) };
     }
     return sendJson(res, 200, { engines: engines(), tools });
   }

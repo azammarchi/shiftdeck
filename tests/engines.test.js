@@ -9,7 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { runTool, info, engines } = require('../engines');
+const { runTool, info, engines, pageThumbnails } = require('../engines');
 const { findProgram } = require('../engines/run');
 const { makeSampleFiles, sample, hasSample, imageSize, PASSWORD } = require('./sample-files');
 
@@ -138,6 +138,33 @@ for (const mode of MODES) {
       const images = await runTool('pdf-to-images', [{ path: rotated.outputs[0], name: 'r.pdf' }], { format: 'png', dpi: 72 }, outDir());
       assert.deepEqual(pixelSize(images.outputs[0]), A4_LANDSCAPE);
       await rejectsWith(run('rotate', ['two-pages.pdf'], { degrees: 45 }), 'badOption');
+    });
+
+    test('organize: pages in a new order, each turned, some removed', async () => {
+      const { outputs } = await run('organize', ['mixed.pdf'], { pages: [{ page: 2 }, { page: 1, turn: 90 }, { page: 3, turn: 180 }] });
+      assert.equal(path.basename(outputs[0]), 'mixed-organized.pdf');
+      const pages = (await info(outputs[0])).pages;
+      assert.deepEqual(pages.map((p) => p.size), [A4_LANDSCAPE, A4_LANDSCAPE, A4]);
+      assert.deepEqual(pages.map((p) => p.rotation), [0, 90, 180]);
+      const one = await run('organize', ['mixed.pdf'], { pages: [{ page: 3 }] });
+      assert.equal((await info(one.outputs[0])).pages.length, 1);
+    });
+
+    test('organize refuses what can\'t be done', async () => {
+      await rejectsWith(run('organize', ['mixed.pdf'], { pages: [] }), 'noPages');
+      await rejectsWith(run('organize', ['mixed.pdf'], {}), 'noPages');
+      await rejectsWith(run('organize', ['mixed.pdf'], { pages: [{ page: 4 }] }), 'badOption');
+      await rejectsWith(run('organize', ['mixed.pdf'], { pages: [{ page: 1, turn: 45 }] }), 'badOption');
+      await rejectsWith(run('organize', ['mixed.pdf', 'two-pages.pdf'], { pages: [{ page: 1 }] }), 'tooManyFiles');
+      await rejectsWith(run('organize', ['protected.pdf'], { pages: [{ page: 1 }] }), 'locked');
+    });
+
+    test('page thumbnails: one small picture per page, as the page is shown', async () => {
+      const thumbnails = await pageThumbnails(sample('mixed.pdf'), outDir());
+      assert.equal(thumbnails.length, 3);
+      assert.deepEqual(thumbnails.map((p) => p.size), [A4, A4_LANDSCAPE, A4]);
+      const [w, h] = pixelSize(thumbnails[1].image);
+      assert.ok(w > h && w < 600, `landscape thumbnail ${w}x${h}`);
     });
 
     test('protect and unlock with qpdf use AES-256', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {

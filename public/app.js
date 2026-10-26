@@ -13,6 +13,8 @@ const state = {
   files: [], // { key, name, size, ext, id, upload: Promise, error }
   busy: false,
   loaded: false, // the tools and engines have come from the server
+  pages: null, // Organize pages: [{ page, size, rotation, image, turn, deleted }] in the new order
+  pagesFor: null, // the key of the file those pages belong to
 };
 let nextKey = 1;
 
@@ -72,6 +74,7 @@ function selectTool(name) {
   $('strongNotice').hidden = name !== 'protect' || !state.engines.qpdf;
   $('optionsHeading').hidden = visibleFields === 0;
   if (name === 'convert-images') updateImageOptions();
+  if (name === 'organize') loadPages();
   $('results').hidden = true;
   setStatus('');
   renderFiles();
@@ -96,6 +99,158 @@ function updateImageOptions() {
   $('formatsHint').textContent = t('formatsUnavailable', { formats: new Intl.ListFormat(currentLanguage).format(unavailable) });
   $('formatsHint').hidden = unavailable.length === 0 || writable.length === 0;
   $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
+}
+
+// ---------------------------------------------------------------------------
+// Organize pages: the first PDF's pages as cards that can be moved, turned
+// and removed, with buttons (keyboard) or by dragging (mouse).
+// ---------------------------------------------------------------------------
+let pagesLoading = null;
+
+async function loadPages() {
+  const file = state.files.find(accepts);
+  if (!file) {
+    state.pages = null;
+    state.pagesFor = null;
+    renderPages();
+    return;
+  }
+  if (state.pagesFor === file.key && (state.pages || pagesLoading)) {
+    renderPages();
+    return;
+  }
+  state.pagesFor = file.key;
+  state.pages = null;
+  $('pagesStatus').textContent = t('loadingPages');
+  $('pageGrid').replaceChildren();
+  const loading = (async () => {
+    await file.upload;
+    if (!file.id) throw Object.assign(new Error(file.error || ''), { code: 'generic' });
+    const response = await fetch(`/api/uploads/${file.id}/pages`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(body.error || response.statusText), { code: body.code });
+    return body.pages;
+  })();
+  pagesLoading = loading;
+  try {
+    const pages = await loading;
+    if (state.pagesFor !== file.key) return; // another file took its place meanwhile
+    state.pages = pages.map((p) => ({ ...p, turn: 0, deleted: false }));
+    renderPages();
+  } catch (err) {
+    if (state.pagesFor === file.key) $('pagesStatus').textContent = errorText(err.code, err.message, { name: file.name });
+  } finally {
+    if (pagesLoading === loading) pagesLoading = null;
+  }
+}
+
+function renderPages() {
+  const grid = $('pageGrid');
+  grid.replaceChildren();
+  const pages = state.pages || [];
+  $('resetPagesButton').hidden = !pages.length;
+  if (!state.pages) {
+    if (!pagesLoading) $('pagesStatus').textContent = t('pagesEmpty');
+    return;
+  }
+  $('pagesStatus').textContent = t('pagesSummary', { kept: pages.filter((p) => !p.deleted).length, count: pages.length });
+  pages.forEach((page, index) => {
+    const card = document.createElement('li');
+    card.className = `page-card${page.deleted ? ' deleted' : ''}`;
+    card.draggable = true;
+    card.dataset.index = index;
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const img = document.createElement('img');
+    img.src = page.image;
+    img.alt = t('pageLabel', { n: page.page });
+    img.style.transform = page.turn ? `rotate(${page.turn}deg)` : '';
+    thumb.append(img);
+    const number = document.createElement('span');
+    number.className = 'page-number';
+    number.textContent = page.deleted ? t('pageRemoved', { n: page.page }) : t('pageLabel', { n: page.page });
+    const actions = document.createElement('div');
+    actions.className = 'page-actions';
+    const n = page.page;
+    actions.append(
+      Object.assign(iconButton('earlier', t('pageEarlier', { n }), 'left'), { disabled: index === 0 }),
+      Object.assign(iconButton('later', t('pageLater', { n }), 'right'), { disabled: index === pages.length - 1 }),
+      iconButton('turnLeft', t('pageTurnLeft', { n }), 'turn-left'),
+      iconButton('turnRight', t('pageTurnRight', { n }), 'rotate'),
+      page.deleted ? iconButton('restore', t('pageRestore', { n }), 'undo') : iconButton('delete', t('pageDelete', { n }), 'trash'),
+    );
+    card.append(thumb, number, actions);
+    grid.append(card);
+  });
+}
+
+function movePage(from, to, announce = true) {
+  const pages = state.pages;
+  if (!pages || to < 0 || to >= pages.length || from === to) return;
+  const [page] = pages.splice(from, 1);
+  pages.splice(to, 0, page);
+  renderPages();
+  if (announce) setStatus(t('pageMoved', { n: page.page, position: to + 1 }));
+}
+
+function onPageAction(e) {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+  const index = Number(button.closest('li').dataset.index);
+  const page = state.pages[index];
+  const action = button.dataset.action;
+  if (action === 'earlier' || action === 'later') {
+    const to = index + (action === 'earlier' ? -1 : 1);
+    movePage(index, to);
+    // Keep the keyboard on the moved page, on a button that still works.
+    const card = $('pageGrid').children[to];
+    const wanted = card.querySelector(`[data-action="${action}"]`);
+    (wanted.disabled ? card.querySelector(`[data-action="${action === 'earlier' ? 'later' : 'earlier'}"]`) : wanted).focus();
+    return;
+  }
+  if (action === 'turnLeft' || action === 'turnRight') {
+    page.turn = (page.turn + (action === 'turnRight' ? 90 : 270)) % 360;
+    setStatus(t('pageTurned', { n: page.page, degrees: page.turn }));
+  } else if (action === 'delete' || action === 'restore') {
+    page.deleted = action === 'delete';
+    setStatus(t(page.deleted ? 'pageRemoved' : 'pageRestored', { n: page.page }));
+  }
+  renderPages();
+  // The delete button becomes restore and vice versa: focus the new one.
+  const swapped = { delete: 'restore', restore: 'delete' }[action] || action;
+  $('pageGrid').children[index].querySelector(`[data-action="${swapped}"]`).focus();
+}
+
+function setUpPageDragging() {
+  const grid = $('pageGrid');
+  let from = null;
+  grid.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.page-card');
+    if (!card) return;
+    from = Number(card.dataset.index);
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(from));
+  });
+  grid.addEventListener('dragover', (e) => {
+    if (from === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    for (const card of grid.querySelectorAll('.drop-target')) card.classList.remove('drop-target');
+    e.target.closest('.page-card')?.classList.add('drop-target');
+  });
+  grid.addEventListener('drop', (e) => {
+    if (from === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const card = e.target.closest('.page-card');
+    if (card) movePage(from, Number(card.dataset.index));
+    from = null;
+  });
+  grid.addEventListener('dragend', () => {
+    from = null;
+    for (const card of grid.querySelectorAll('.dragging, .drop-target')) card.classList.remove('dragging', 'drop-target');
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +351,7 @@ function renderFiles() {
   $('noFiles').hidden = state.files.length > 0;
   $('clearButton').hidden = state.files.length === 0;
   updateRunButton();
+  if (state.tool === 'organize') loadPages();
 }
 
 function updateRunButton() {
@@ -219,6 +375,9 @@ function readOptions() {
       if (el.value !== '') options[el.name] = Number(el.value);
     } else options[el.name] = el.value;
   }
+  if (state.tool === 'organize' && state.pages) {
+    options.pages = state.pages.filter((p) => !p.deleted).map(({ page, turn }) => ({ page, turn }));
+  }
   return options;
 }
 
@@ -228,6 +387,14 @@ async function runTool() {
   // A file that doesn't fit is the thing to fix first, whatever else is wrong.
   if (usable.length < state.files.length) {
     setStatus(t('err_wrongType'), 'error');
+    return;
+  }
+  if (tool.maxFiles && usable.length > tool.maxFiles) {
+    setStatus(t('err_tooManyFiles'), 'error');
+    return;
+  }
+  if (state.tool === 'organize' && state.pages && !state.pages.some((p) => !p.deleted)) {
+    setStatus(t('err_noPages'), 'error');
     return;
   }
   if (usable.length < tool.minFiles) {
@@ -377,6 +544,14 @@ async function init() {
     $('chooseButton').focus();
   });
   $('imageFormatSelect').addEventListener('change', updateImageOptions);
+  $('pageGrid').addEventListener('click', onPageAction);
+  $('resetPagesButton').addEventListener('click', () => {
+    state.pages.sort((a, b) => a.page - b.page);
+    for (const page of state.pages) Object.assign(page, { turn: 0, deleted: false });
+    renderPages();
+    setStatus(t('pagesReset'));
+  });
+  setUpPageDragging();
   $('showPassword').addEventListener('change', (e) => {
     $('passwordInput').type = e.target.checked ? 'text' : 'password';
   });

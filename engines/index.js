@@ -59,6 +59,20 @@ function integer(options, key, min, max, fallback) {
   return value;
 }
 
+// The page list "Organize pages" sends: [{ page, turn }], 1-based pages in
+// the new order, each turned by 0, 90, 180 or 270 degrees.
+function pageList(value, count) {
+  if (!Array.isArray(value) || value.length === 0) throw new ToolError('noPages', 'keep at least one page');
+  if (value.length > 10000) throw new ToolError('badOption', 'too many pages');
+  return value.map((item) => {
+    const page = Number(item?.page);
+    const turn = Number(item?.turn ?? 0);
+    if (!Number.isInteger(page) || page < 1 || page > count) throw new ToolError('badOption', `page ${item?.page} is not in this PDF (1-${count})`);
+    if (![0, 90, 180, 270].includes(turn)) throw new ToolError('badOption', `a page can only be turned by 0, 90, 180 or 270 degrees`);
+    return [page, turn];
+  });
+}
+
 function requirePassword(options) {
   const password = typeof options.password === 'string' ? options.password : '';
   if (!password) throw new ToolError('noPassword', 'no password given');
@@ -215,6 +229,22 @@ const TOOLS = {
     },
   },
 
+  organize: {
+    accepts: PDF_TYPES,
+    mode: 'each',
+    maxFiles: 1,
+    // mutool draws the page thumbnails the app shows.
+    needs: () => (native() ? [] : missing('qpdf', 'mutool')),
+    async run(file, options, outDir) {
+      const count = (await unlockedInfo(file.path)).pages.length;
+      const pages = pageList(options.pages, count);
+      const output = path.join(outDir, `${stem(file.name)}-organized.pdf`);
+      if (native()) return pdfkit('organize', [file.path, output, JSON.stringify(pages)]);
+      await qpdf.organize(file.path, output, pages, outDir);
+      return { outputs: [output] };
+    },
+  },
+
   rotate: {
     accepts: PDF_TYPES,
     mode: 'each',
@@ -273,6 +303,7 @@ async function runTool(name, files, options, outDir) {
   const missing = tool.needs();
   if (missing.length) throw new ToolError('noEngine', `${name} needs ${missing.join(', ')}: run npm run setup`);
   if (files.length < (tool.minFiles || 1)) throw new ToolError('tooFewFiles', `${name} needs at least ${tool.minFiles || 1} files`);
+  if (tool.maxFiles && files.length > tool.maxFiles) throw new ToolError('tooManyFiles', `${name} works on ${tool.maxFiles} file at a time`);
   for (const file of files) {
     if (!tool.accepts.includes(path.extname(file.name).toLowerCase())) {
       throw new ToolError('wrongType', `${file.name} can't be used with ${name}`);
@@ -297,4 +328,19 @@ async function runTool(name, files, options, outDir) {
   return { outputs, warnings: [...warnings] };
 }
 
-module.exports = { TOOLS, engines, runTool, info, ToolError };
+// Small pictures of every page of a PDF, for the app to show: the page's
+// size and rotation, and a PNG (pages appear as shown, rotation applied).
+const THUMBNAIL_DPI = 40;
+async function pageThumbnails(file, outDir) {
+  const { pages } = await unlockedInfo(file);
+  let images;
+  if (native()) images = (await pdfkit('toimages', [file, outDir, 'thumbnail', 'png', THUMBNAIL_DPI])).outputs;
+  else {
+    const absent = missing('mutool');
+    if (absent.length) throw new ToolError('noEngine', 'page thumbnails need mutool: run npm run setup');
+    images = await mutool.renderPages(file, outDir, 'thumbnail', THUMBNAIL_DPI);
+  }
+  return pages.map((page, i) => ({ ...page, image: images[i] }));
+}
+
+module.exports = { TOOLS, engines, runTool, info, pageThumbnails, ToolError };

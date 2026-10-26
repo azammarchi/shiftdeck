@@ -80,6 +80,15 @@ const extract = (input, from, to, output, workDir) =>
 const rotate = (input, output, degrees, workDir) =>
   qpdf([input, output, `--rotate=+${degrees}`], { workDir });
 
+// pages: [[page, turn]] (1-based, in the new order). The turns apply to the
+// output's pages, grouped by angle: --rotate=+90:1,4 turns output pages 1 and 4.
+function organize(input, output, pages, workDir) {
+  const turns = { 90: [], 180: [], 270: [] };
+  pages.forEach(([, turn], i) => turns[turn]?.push(i + 1));
+  const rotations = Object.entries(turns).filter(([, list]) => list.length).map(([angle, list]) => `--rotate=+${angle}:${list.join(',')}`);
+  return qpdf(['--empty', '--pages', input, pages.map(([page]) => page).join(','), '--', ...rotations, output], { workDir });
+}
+
 const encrypt = (input, output, password, workDir) =>
   qpdfJob({ inputFile: input, outputFile: output, encrypt: { userPassword: password, ownerPassword: password, '256bit': {} } }, { workDir });
 
@@ -92,6 +101,7 @@ module.exports = {
   merge,
   extract,
   rotate,
+  organize,
   encrypt,
   decrypt,
 };

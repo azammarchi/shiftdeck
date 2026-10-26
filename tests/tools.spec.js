@@ -112,6 +112,52 @@ test('files a tool can\'t use are marked, and nothing runs', async ({ page }) =>
   await expect(page.locator('#status')).toHaveText('Add at least 2 files for this tool.');
 });
 
+test('organize pages: move, turn and remove pages, from the keyboard and by dragging', async ({ page }) => {
+  await pickTool(page, 'organize');
+  await addFiles(page, ['mixed.pdf']);
+  await expect(page.locator('.page-card')).toHaveCount(3);
+  await expect(page.locator('#pagesStatus')).toHaveText('3 of 3 pages kept.');
+
+  // Keyboard: page 2 first, page 1 turned right, page 3 removed.
+  await page.getByRole('button', { name: 'Move page 2 earlier' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#status')).toHaveText('Page 2 moved to position 1.');
+  await expect(page.getByRole('button', { name: 'Move page 2 later' })).toBeFocused();
+  await page.getByRole('button', { name: 'Turn page 1 right' }).click();
+  await page.getByRole('button', { name: 'Remove page 3' }).click();
+  await expect(page.getByRole('button', { name: 'Bring back page 3' })).toBeFocused();
+  await expect(page.locator('#pagesStatus')).toHaveText('2 of 3 pages kept.');
+  await expect(page.locator('.page-number')).toHaveText(['Page 2', 'Page 1', 'Page 3 removed']);
+
+  // Mouse: drag page 3 (removed) to the front, then bring it back.
+  await page.locator('.page-card').nth(2).dragTo(page.locator('.page-card').nth(0));
+  await expect(page.locator('.page-number')).toHaveText(['Page 3 removed', 'Page 2', 'Page 1']);
+  await page.getByRole('button', { name: 'Bring back page 3' }).click();
+
+  await convert(page);
+  const file = await download(page, 'mixed-organized.pdf');
+  const pages = (await info(file)).pages;
+  expect(pages.map((p) => p.size)).toEqual([[595, 842], [842, 595], [842, 595]]);
+  expect(pages.map((p) => p.rotation)).toEqual([0, 0, 90]);
+});
+
+test('organize pages works on one PDF, and keeps at least one page', async ({ page }) => {
+  await pickTool(page, 'organize');
+  await addFiles(page, ['two-pages.pdf']);
+  await expect(page.locator('.page-card')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Remove page 1' }).click();
+  await page.getByRole('button', { name: 'Remove page 2' }).click();
+  await convert(page);
+  await expect(page.locator('#status')).toHaveText('Keep at least one page.');
+  await page.locator('#resetPagesButton').click();
+  await expect(page.locator('#pagesStatus')).toHaveText('2 of 2 pages kept.');
+
+  await page.locator('#clearButton').click();
+  await addFiles(page, ['two-pages.pdf', 'mixed.pdf']);
+  await convert(page);
+  await expect(page.locator('#status')).toHaveText('This tool works on one PDF at a time: remove the others.');
+});
+
 test.describe('converting images', () => {
   test.skip(() => !engines().imagemagick, 'ImageMagick is not installed');
 

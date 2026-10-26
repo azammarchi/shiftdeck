@@ -9,6 +9,7 @@
 //   toimages   <in.pdf> <outDir> <prefix> <png|jpeg> <dpi>
 //   fromimages <out.pdf> <a4|letter|original> <image>...
 //   rotate     <in.pdf> <out.pdf> <90|180|270>
+//   organize   <in.pdf> <out.pdf> <JSON [[page, turn], ...]>   (1-based pages, in the new order)
 //   encrypt    <in.pdf> <out.pdf>
 //   decrypt    <in.pdf> <out.pdf>
 //
@@ -183,6 +184,28 @@ const commands = {
       const page = $.PDFPage.alloc.initWithImage(image);
       if (box) page.setBoundsForBox(box, MEDIA_BOX);
       out.insertPageAtIndex(page, pageCount(out));
+    }
+    save(out, output);
+    return { outputs: [output] };
+  },
+
+  // A new PDF from the pages listed, in that order, each turned by its own
+  // amount on top of its rotation. Pages not listed are left out.
+  organize(input, output, spec) {
+    const doc = open(input);
+    const count = pageCount(doc);
+    let pages;
+    try {
+      pages = JSON.parse(spec);
+    } catch {
+      throw new ToolError('badOption', 'pages must be JSON');
+    }
+    const out = $.PDFDocument.alloc.init;
+    for (const [page, turn] of pages) {
+      if (!(page >= 1 && page <= count) || ![0, 90, 180, 270].includes(turn)) throw new ToolError('badOption', `bad page ${page} or turn ${turn}`);
+      const copy = doc.pageAtIndex(page - 1).copy;
+      copy.rotation = (Number(copy.rotation) + turn) % 360;
+      out.insertPageAtIndex(copy, pageCount(out));
     }
     save(out, output);
     return { outputs: [output] };

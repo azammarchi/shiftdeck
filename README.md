@@ -32,6 +32,7 @@ npm start
 
 - 📎 **Merge PDFs** in the order you choose
 - ✂️ **Split a PDF** into single pages or page ranges (`1-3, 4, 5-8`)
+- 🧩 **Organize pages**: see every page as a thumbnail, put them in a new order (drag them, or use the keyboard), turn single pages and remove the ones you don't want
 - 🖼️ **PDF to images**: every page as PNG or JPEG, at the resolution you pick
 - 🖼️ **Convert images** between PNG, JPEG, HEIC, WebP and TIFF, make them smaller, and remove their hidden details: where a photo was taken (GPS), the camera, the date
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
@@ -51,7 +52,7 @@ The page in your browser sends your files to a small server on your own computer
 | Engine | Used for | macOS | Linux | Windows |
 | --- | --- | --- | --- | --- |
 | [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256) | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
-| [mutool](https://mupdf.com) (MuPDF) | PDF to images | not needed | ✓ | ✓ |
+| [mutool](https://mupdf.com) (MuPDF) | PDF to images, page thumbnails | not needed | ✓ | ✓ |
 | [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
 
@@ -89,7 +90,7 @@ Shiftdeck aims to become a single local converter for the files you deal with ev
 
 - **Audio** and **video**: WAV, MP3, M4A, MP4, MKV, WebM, GIF… with ffmpeg
 - **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
-- **More PDF tools**: compress, reorder and delete pages, a drawn signature, page numbers, OCR
+- **More PDF tools**: compress, a drawn signature, page numbers, OCR
 - **Desktop integration**: right-click a file to convert it, a watched folder
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).

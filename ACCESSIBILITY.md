@@ -4,7 +4,7 @@ Shiftdeck aims to be usable by everyone, whether you use a mouse, a keyboard or 
 
 ## What's supported
 
-- **Everything works from the keyboard.** The tools are radio buttons (arrows move between them), files are added with a regular button and file picker, each file's **Move up**, **Move down** and **Remove** buttons are reachable with `Tab`, and `Enter` in an option field runs the tool. After moving a file, the focus stays on it.
+- **Everything works from the keyboard.** The tools are radio buttons (arrows move between them), files are added with a regular button and file picker, each file's **Move up**, **Move down** and **Remove** buttons are reachable with `Tab`, and `Enter` in an option field runs the tool. After moving a file, the focus stays on it. In **Organize pages**, every page has buttons to move it earlier or later, turn it and remove or bring it back, so dragging is never needed; each change is announced.
 - **Screen readers** get a name for every control, including icon-only buttons (named after the file they act on), and hear the progress and outcome of every conversion through a status message.
 - **Contrast**: text meets the 4.5:1 ratio, including on the colored button.
 - **Visible focus**: a clear outline shows where the keyboard is.

@@ -169,6 +169,8 @@ async function makeSampleFiles() {
   };
   await make('images-to-pdf', ['p1.png', 'p2.png', 'p3.png'], { pageSize: 'a4' }, 'three-pages.pdf');
   await make('images-to-pdf', ['p4.png', 'p5.png'], { pageSize: 'a4' }, 'two-pages.pdf');
+  // Portrait, landscape, portrait: page order shows in the page sizes.
+  await make('images-to-pdf', ['p1.png', 'landscape.png', 'p3.png'], { pageSize: 'a4' }, 'mixed.pdf');
   await make('protect', ['two-pages.pdf'], { password: PASSWORD }, 'protected.pdf');
   return DIR;
 }
