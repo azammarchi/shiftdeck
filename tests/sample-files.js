@@ -115,10 +115,22 @@ function exifSegment() {
   return Buffer.concat([header, body]);
 }
 
-// A copy of a JPEG with exifSegment() right after its start marker.
+// A copy of a JPEG with exifSegment() right after its start marker, in place
+// of any EXIF it had (sips writes its own, and readers disagree on which of
+// two EXIF blocks counts).
 function addExif(input, output) {
   const jpeg = fs.readFileSync(input);
-  fs.writeFileSync(output, Buffer.concat([jpeg.subarray(0, 2), exifSegment(), jpeg.subarray(2)]));
+  const parts = [jpeg.subarray(0, 2), exifSegment()];
+  let at = 2;
+  // Header segments run until the start of the image data (FFDA).
+  while (at + 4 <= jpeg.length && jpeg[at] === 0xff && jpeg[at + 1] !== 0xda) {
+    const end = at + 2 + jpeg.readUInt16BE(at + 2);
+    const isExif = jpeg[at + 1] === 0xe1 && jpeg.toString('latin1', at + 4, at + 10) === 'Exif\0\0';
+    if (!isExif) parts.push(jpeg.subarray(at, end));
+    at = end;
+  }
+  parts.push(jpeg.subarray(at));
+  fs.writeFileSync(output, Buffer.concat(parts));
 }
 
 // Converts an image with sips (macOS) or ImageMagick; false if neither can.
