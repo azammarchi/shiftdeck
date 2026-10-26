@@ -131,7 +131,11 @@ async function main() {
   let ok = true;
   for (const command of manager.install(absent.map((name) => manager.packages[name]), broken.map((name) => manager.packages[name]))) {
     const full = [command[0] === manager.name ? manager.program : command[0], ...command.slice(1)];
-    if (!run(sudo ? [sudo, ...full] : full)) ok = false;
+    if (run(sudo ? [sudo, ...full] : full)) continue;
+    // Homebrew may know an old version whose download is gone (404): update
+    // what it knows and try once more.
+    if (manager.name === 'brew' && run([manager.program, 'update']) && run(full)) continue;
+    ok = false;
   }
   if (dryRun) return;
 

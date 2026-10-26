@@ -488,7 +488,8 @@ describe('Documents to PDF', { skip: !engines().libreoffice && 'LibreOffice is n
       assert.equal(path.basename(outputs[0]), `${name.replace(/\.[^.]+$/, '')}.pdf`);
       const { pages } = await info(outputs[0]);
       assert.ok(pages.length >= 1, `${name}: ${pages.length} pages`);
-      const images = await runTool('pdf-to-images', [{ path: outputs[0], name: 'doc.pdf' }], { format: 'png', dpi: 40 }, outDir());
+      // At 100 dpi, so the small print of a spreadsheet counts too.
+      const images = await runTool('pdf-to-images', [{ path: outputs[0], name: 'doc.pdf' }], { format: 'png', dpi: 100 }, outDir());
       assert.ok(darkPixels(images.outputs[0], [0, 0, 1, 1]) > 20, `${name}: text on the first page`);
     }
   });
