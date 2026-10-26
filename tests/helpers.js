@@ -3,7 +3,9 @@ const { sample } = require('./sample-files');
 
 async function openApp(page) {
   await page.goto('/');
-  await expect(page.locator('#runButton')).toBeEnabled();
+  // Loading asks ImageMagick and ffmpeg what they can do, which can take a
+  // few seconds on a busy Windows machine.
+  await expect(page.locator('#runButton')).toBeEnabled({ timeout: 20000 });
   await expect(page.locator('#missingNotice')).toBeHidden();
 }
 

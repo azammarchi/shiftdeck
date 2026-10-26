@@ -6,7 +6,7 @@
 // missing, so the app says to run `npm run setup` instead of failing later.
 const { spawn } = require('child_process');
 const fsp = require('fs/promises');
-const { findProgram, runProgram, ToolError } = require('./run');
+const { findProgram, runProgram, stopProgram, ToolError } = require('./run');
 
 const program = () => findProgram('ffmpeg');
 const probeProgram = () => findProgram('ffprobe');
@@ -87,7 +87,7 @@ async function convert(args, output, { total, onProgress, signal } = {}) {
       if (match && total && onProgress) onProgress(Math.min(1, Number(match[1]) / 1e6 / total));
     }
   });
-  const abort = () => child.kill();
+  const abort = () => stopProgram(child);
   signal?.addEventListener('abort', abort, { once: true });
   const code = await new Promise((resolve) => {
     child.on('error', () => resolve(-1));

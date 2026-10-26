@@ -15,6 +15,9 @@ async function expectNoViolations(page, view) {
 }
 
 test('axe finds no WCAG 2.1 AA problems on any tool', async ({ page }) => {
+  // Sixteen tools, each analysed in turn: more than the default 30 seconds
+  // on slower machines.
+  test.setTimeout(120000);
   await openApp(page);
   for (const tool of ['merge', 'split', 'organize', 'pdf-to-images', 'images-to-pdf', 'documents-to-pdf', 'convert-images', 'convert-audio', 'convert-video', 'page-numbers', 'sign', 'watermark', 'compress', 'rotate', 'protect', 'unlock']) {
     await pickTool(page, tool);

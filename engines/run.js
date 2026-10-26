@@ -65,23 +65,35 @@ function findProgram(name) {
   return null;
 }
 
+// Stops a program and everything it started. On Windows a command can be a
+// launcher that starts the real program (winget's ffmpeg, LibreOffice's
+// soffice), and stopping only the launcher leaves the work running, so the
+// whole process tree goes.
+function stopProgram(child) {
+  const taskkill = isWindows && findProgram('taskkill');
+  if (taskkill && child.pid) execFile(taskkill, ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }, () => {});
+  else child.kill();
+}
+
 // Runs a program with an argument array (never through a shell, so file names
 // can't be read as commands) and resolves with its output, even when it fails.
-// With `binary`, stdout is a Buffer (for image data).
+// With `binary`, stdout is a Buffer (for image data). Aborting `signal` stops
+// it, with whatever it started.
 function runProgram(file, args, { env, binary = false, signal } = {}) {
   return new Promise((resolve) => {
-    execFile(file, args, {
+    const child = execFile(file, args, {
       env: { ...process.env, ...env },
       timeout: TIMEOUT_MS,
       maxBuffer: 1024 * 1024 * 1024,
       encoding: binary ? 'buffer' : 'utf8',
       windowsHide: true,
-      signal,
-    }, (err, stdout, stderr) => resolve({
-      code: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
-      stdout,
-      stderr: String(stderr),
-    }));
+    }, (err, stdout, stderr) => {
+      signal?.removeEventListener('abort', stop);
+      resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stdout, stderr: String(stderr) });
+    });
+    const stop = () => stopProgram(child);
+    if (signal?.aborted) stop();
+    else signal?.addEventListener('abort', stop, { once: true });
   });
 }
 
@@ -105,4 +117,4 @@ async function withPrivateFile(dir, content, use) {
   }
 }
 
-module.exports = { findProgram, runProgram, withPrivateFile, isDisabled, ToolError, isWindows };
+module.exports = { findProgram, runProgram, stopProgram, withPrivateFile, isDisabled, ToolError, isWindows };
