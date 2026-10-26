@@ -1,9 +1,10 @@
 {
   "name": "shiftdeck",
   "version": "0.1.0",
-  "description": "Convert and edit files on your Mac, locally: merge, split, rotate and password-protect PDFs, turn PDFs into images and images into PDFs.",
+  "description": "Convert and edit files on your computer, locally: merge, split, rotate and password-protect PDFs, turn PDFs into images and images into PDFs. macOS, Linux and Windows.",
   "private": true,
   "scripts": {
+    "setup": "node scripts/setup.js",
     "start": "node server.js",
     "test": "npm run test:engines && npm run test:e2e",
     "test:engines": "node --test tests/engines.test.js",
@@ -17,8 +18,5 @@
   "engines": {
     "node": ">=20"
   },
-  "os": [
-    "darwin"
-  ],
   "license": "MIT"
 }
