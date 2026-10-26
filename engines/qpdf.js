@@ -2,10 +2,10 @@
 // Merges, splits and rotates PDFs, reads their pages, and adds or removes
 // passwords with AES-256 encryption.
 //
-// When a command carries a password, its arguments go through a file only
-// this user can read (qpdf's @file syntax, one argument per line), so the
-// password never shows up in `ps`. Other commands get their arguments
-// directly, which is just as safe: no shell is ever involved.
+// Commands that carry a password are given to qpdf as a JSON job file
+// (--job-json-file) that only this user can read, so the password never
+// shows up in `ps`. Other commands get their arguments directly, which is
+// just as safe: no shell is ever involved.
 const { findProgram, runProgram, withPrivateFile, ToolError } = require('./run');
 
 // Looked up on every use, so installing qpdf needs no restart.
@@ -23,14 +23,18 @@ function check(result, password) {
   throw new ToolError('failed', result.stderr.trim() || `qpdf exited with code ${result.code}`);
 }
 
-async function qpdf(args, { workDir, password } = {}) {
+async function qpdf(args) {
   const file = program();
   if (!file) throw new ToolError('noEngine', 'qpdf is not installed');
-  if (!password) return check(await runProgram(file, args));
-  if (args.some((arg) => /[\r\n]/.test(arg))) throw new ToolError('badOption', 'line breaks are not allowed in passwords or file names');
-  // No newline after the last argument: some qpdf versions read the empty
-  // line that would follow as one more (empty) argument.
-  return withPrivateFile(workDir, args.join('\n'), async (argsFile) => check(await runProgram(file, [`@${argsFile}`]), password));
+  return check(await runProgram(file, args));
+}
+
+// `job` is qpdf's JSON form of a command (see `qpdf --job-json-help`).
+async function qpdfJob(job, { workDir, password } = {}) {
+  const file = program();
+  if (!file) throw new ToolError('noEngine', 'qpdf is not installed');
+  return withPrivateFile(workDir, JSON.stringify(job), async (jobFile) =>
+    check(await runProgram(file, [`--job-json-file=${jobFile}`]), password));
 }
 
 // Follows /Parent links, since a page can inherit its /MediaBox and /Rotate.
@@ -48,10 +52,9 @@ function inherited(objects, ref, key) {
 async function info(input, { password, workDir } = {}) {
   let result;
   try {
-    result = await qpdf([
-      ...(password ? [`--password=${password}`] : []),
-      '--json=2', '--json-key=pages', '--json-key=qpdf', '--json-key=encrypt', input,
-    ], { workDir, password });
+    result = password
+      ? await qpdfJob({ inputFile: input, password, json: '2', jsonKey: ['pages', 'qpdf', 'encrypt'] }, { workDir, password })
+      : await qpdf(['--json=2', '--json-key=pages', '--json-key=qpdf', '--json-key=encrypt', input], { workDir });
   } catch (err) {
     if (err.code === 'locked' || err.code === 'wrongPassword') return { encrypted: true, locked: true };
     throw err;
@@ -78,10 +81,10 @@ const rotate = (input, output, degrees, workDir) =>
   qpdf([input, output, `--rotate=+${degrees}`], { workDir });
 
 const encrypt = (input, output, password, workDir) =>
-  qpdf(['--encrypt', password, password, '256', '--', input, output], { workDir, password });
+  qpdfJob({ inputFile: input, outputFile: output, encrypt: { userPassword: password, ownerPassword: password, '256bit': {} } }, { workDir });
 
 const decrypt = (input, output, password, workDir) =>
-  qpdf([`--password=${password}`, '--decrypt', input, output], { workDir, password });
+  qpdfJob({ inputFile: input, password, outputFile: output, decrypt: '' }, { workDir, password });
 
 module.exports = {
   available: () => !!program(),
