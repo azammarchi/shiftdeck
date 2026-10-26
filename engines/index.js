@@ -13,6 +13,7 @@ const qpdf = require('./qpdf');
 const mutool = require('./mutool');
 const imagemagick = require('./imagemagick');
 const ffmpeg = require('./ffmpeg');
+const libreoffice = require('./libreoffice');
 const { writePdf, jpegFrame, textWidth } = require('./pdfwrite');
 const { readPng } = require('../lib/png');
 const { ToolError } = require('./run');
@@ -22,6 +23,10 @@ const { pdfkit } = pdfkitEngine;
 const PDF_TYPES = ['.pdf'];
 const IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.heic', '.heif', '.tif', '.tiff', '.gif', '.bmp', '.webp', '.jp2'];
 const DPI_RANGE = [36, 600];
+// What LibreOffice opens: documents, spreadsheets, presentations, text.
+const DOCUMENT_TYPES = ['.docx', '.doc', '.odt', '.rtf', '.txt', '.html', '.htm', '.md', '.pages', '.wpd',
+  '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.key'];
+
 const AUDIO_TYPES = ['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.oga', '.opus', '.aif', '.aiff', '.wma', '.caf'];
 const VIDEO_TYPES = ['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.avi', '.wmv', '.flv', '.mpg', '.mpeg', '.3gp'];
 
@@ -52,7 +57,7 @@ const LOSSY = ['jpeg', 'webp', 'heic'];
 const PAGE_SIZES = { a4: [595, 842], letter: [612, 792] };
 
 function engines() {
-  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available(), ffmpeg: ffmpeg.available() };
+  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available(), ffmpeg: ffmpeg.available(), libreoffice: libreoffice.available() };
 }
 
 const native = () => pdfkitEngine.available();
@@ -400,6 +405,17 @@ const TOOLS = {
         return { outputs: [output], warnings: ['notSmaller'] };
       }
       return { outputs: [output], saved: before.size - after.size };
+    },
+  },
+
+  'documents-to-pdf': {
+    accepts: DOCUMENT_TYPES,
+    mode: 'each',
+    needs: () => missing('libreoffice'),
+    async run(file, options, outDir, { signal } = {}) {
+      const output = path.join(outDir, `${stem(file.name)}.pdf`);
+      await libreoffice.toPdf(file.path, output, { signal });
+      return { outputs: [output] };
     },
   },
 

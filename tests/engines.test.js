@@ -479,6 +479,28 @@ describe('Audio and video', () => {
   });
 });
 
+describe('Documents to PDF', { skip: !engines().libreoffice && 'LibreOffice is not installed' }, () => {
+  test('Word, RTF, HTML, CSV and text become PDFs with their text on the page', async () => {
+    for (const name of ['letter.docx', 'note.rtf', 'page.html', 'table.csv', 'readme.txt']) {
+      const { outputs } = await run('documents-to-pdf', [name]);
+      assert.equal(path.basename(outputs[0]), `${name.replace(/\.[^.]+$/, '')}.pdf`);
+      const { pages } = await info(outputs[0]);
+      assert.ok(pages.length >= 1, `${name}: ${pages.length} pages`);
+      const images = await runTool('pdf-to-images', [{ path: outputs[0], name: 'doc.pdf' }], { format: 'png', dpi: 40 }, outDir());
+      assert.ok(darkPixels(images.outputs[0], [0, 0, 1, 1]) > 20, `${name}: text on the first page`);
+    }
+  });
+
+  test('several documents convert side by side, each with its own LibreOffice profile', async () => {
+    const results = await Promise.all(['letter.docx', 'note.rtf', 'readme.txt'].map((name) => run('documents-to-pdf', [name])));
+    for (const { outputs } of results) assert.ok((await info(outputs[0])).pages.length >= 1);
+  });
+
+  test('only document files are taken', async () => {
+    await rejectsWith(run('documents-to-pdf', ['p1.png']), 'wrongType');
+  });
+});
+
 test('with no engine at all, tools say what to install', () => withEnv(['pdfkit', 'qpdf', 'mutool', 'imagemagick'], async () => {
   await rejectsWith(run('merge', ['three-pages.pdf', 'two-pages.pdf']), 'noEngine');
   await rejectsWith(run('images-to-pdf', ['p1.png']), 'noEngine');

@@ -5,6 +5,7 @@
 //   npm run setup              install what this system needs
 //   npm run setup -- --all     also the engines macOS doesn't need (for testing)
 //   npm run setup -- --dry-run show the commands without running them
+//   npm run setup -- --no-documents  skip LibreOffice (documents to PDF), a large download
 const { spawnSync } = require('child_process');
 const { findProgram } = require('../engines/run');
 const { engines } = require('../engines');
@@ -20,26 +21,42 @@ const ENGINES = {
   mutool: 'PDF to images (MuPDF)',
   imagemagick: 'converting images: PNG, JPEG, HEIC, TIFF, WebP...',
   ffmpeg: 'converting audio and video: MP3, M4A, WAV, MP4, WebM, GIF...',
+  libreoffice: 'documents to PDF: Word, Excel, PowerPoint, OpenDocument... (a large download)',
 };
 
 // On macOS, Apple's PDFKit already does the PDF work, so mutool isn't needed.
-const wanted = isMac && !args.has('--all') ? ['qpdf', 'imagemagick', 'ffmpeg'] : Object.keys(ENGINES);
+// LibreOffice is large (several hundred MB): --no-documents leaves it out.
+const wanted = (isMac && !args.has('--all') ? ['qpdf', 'imagemagick', 'ffmpeg', 'libreoffice'] : Object.keys(ENGINES))
+  .filter((name) => !(name === 'libreoffice' && args.has('--no-documents')));
 
 // Package names per package manager, and how to install with it.
 const MANAGERS = [
   // An engine that is installed but doesn't start (a library it needs was
   // updated) is reinstalled: a plain `brew install` would do nothing.
-  { name: 'brew', packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [...(p.length ? [['brew', 'install', ...p]] : []), ...(broken.length ? [['brew', 'reinstall', ...broken]] : [])] },
-  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...(broken.length ? ['--reinstall'] : []), ...p, ...broken]] },
-  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg-free' }, install: (p, broken) => [['dnf', 'install', '-y', ...p], ...(broken.length ? [['dnf', 'reinstall', '-y', ...broken]] : [])] },
-  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['pacman', '-S', '--noconfirm', ...p, ...broken]] },
-  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['zypper', 'install', '-y', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
+  // LibreOffice comes as a Homebrew cask (an app), installed on its own.
+  {
+    name: 'brew',
+    packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: '--cask libreoffice' },
+    install: (p, broken) => {
+      const casks = p.filter((name) => name.startsWith('--cask ')).map((name) => name.slice(7));
+      const formulas = p.filter((name) => !name.startsWith('--cask '));
+      return [
+        ...(formulas.length ? [['brew', 'install', ...formulas]] : []),
+        ...(casks.length ? [['brew', 'install', '--cask', ...casks]] : []),
+        ...(broken.length ? [['brew', 'reinstall', ...broken]] : []),
+      ];
+    },
+  },
+  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-nogui' }, install: (p, broken) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...(broken.length ? ['--reinstall'] : []), ...p, ...broken]] },
+  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg-free', libreoffice: 'libreoffice' }, install: (p, broken) => [['dnf', 'install', '-y', ...p], ...(broken.length ? [['dnf', 'reinstall', '-y', ...broken]] : [])] },
+  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh' }, install: (p, broken) => [['pacman', '-S', '--noconfirm', ...p, ...broken]] },
+  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice' }, install: (p, broken) => [['zypper', 'install', '-y', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
   {
     name: 'winget',
-    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick', ffmpeg: 'Gyan.FFmpeg' },
+    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick', ffmpeg: 'Gyan.FFmpeg', libreoffice: 'TheDocumentFoundation.LibreOffice' },
     install: (p, broken) => [...p, ...broken].map((id) => ['winget', 'install', '--id', id, '--exact', '--silent', '--force', '--accept-source-agreements', '--accept-package-agreements', '--disable-interactivity']),
   },
-  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['choco', 'install', '-y', '--no-progress', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
+  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh' }, install: (p, broken) => [['choco', 'install', '-y', '--no-progress', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
 ];
 
 const MANUAL = {
@@ -47,6 +64,7 @@ const MANUAL = {
   mutool: 'https://mupdf.com/releases',
   imagemagick: 'https://imagemagick.org/script/download.php',
   ffmpeg: 'https://ffmpeg.org/download.html',
+  libreoffice: 'https://www.libreoffice.org/download/',
 };
 
 function pickManager() {

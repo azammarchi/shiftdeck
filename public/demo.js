@@ -23,6 +23,7 @@ if (DEMO) {
   const APP_TOOLS = {
     merge: ['.pdf'], split: ['.pdf'], organize: ['.pdf'], 'pdf-to-images': ['.pdf'], 'page-numbers': ['.pdf'], sign: ['.pdf'],
     watermark: ['.pdf'], compress: ['.pdf'], rotate: ['.pdf'], protect: ['.pdf'], unlock: ['.pdf'],
+    'documents-to-pdf': ['.docx', '.odt', '.rtf', '.xlsx', '.pptx'],
     'convert-audio': ['.mp3', '.wav', '.m4a', '.flac', '.ogg', '.mp4', '.mov'], 'convert-video': ['.mp4', '.mov', '.mkv', '.webm'],
   };
   const PAGE_SIZES = { a4: [595, 842], letter: [612, 792] };

@@ -235,6 +235,18 @@ test.describe('watermarks and compression', () => {
   });
 });
 
+test.describe('documents', () => {
+  test.skip(() => !engines().libreoffice, 'LibreOffice is not installed');
+
+  test('turn a Word document into a PDF', async ({ page }) => {
+    await pickTool(page, 'documents-to-pdf');
+    await addFiles(page, ['letter.docx']);
+    await convert(page);
+    const file = await download(page, 'letter.pdf');
+    expect((await info(file)).pages.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
 test.describe('audio and video', () => {
   test.skip(() => !hasSample('clip.mp4'), 'ffmpeg is not installed, or does not start');
 

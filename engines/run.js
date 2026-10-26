@@ -30,12 +30,12 @@ function subfolders(dir, pattern) {
 // the install folders of qpdf ("qpdf 12.4.2\bin"), ImageMagick and MuPDF, and
 // winget's links and portable packages.
 function extraFolders() {
-  if (process.platform === 'darwin') return ['/opt/homebrew/bin', '/usr/local/bin'];
+  if (process.platform === 'darwin') return ['/opt/homebrew/bin', '/usr/local/bin', '/Applications/LibreOffice.app/Contents/MacOS'];
   if (!isWindows) return ['/usr/local/bin', '/usr/bin', '/snap/bin'];
   const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')].filter(Boolean);
   const folders = [];
   for (const root of roots) {
-    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf|ffmpeg)/i)) folders.push(dir, path.join(dir, 'bin'));
+    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf|ffmpeg|libreoffice)/i)) folders.push(dir, path.join(dir, 'bin'), path.join(dir, 'program'));
   }
   const winget = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet');
   if (winget) {
@@ -68,7 +68,7 @@ function findProgram(name) {
 // Runs a program with an argument array (never through a shell, so file names
 // can't be read as commands) and resolves with its output, even when it fails.
 // With `binary`, stdout is a Buffer (for image data).
-function runProgram(file, args, { env, binary = false } = {}) {
+function runProgram(file, args, { env, binary = false, signal } = {}) {
   return new Promise((resolve) => {
     execFile(file, args, {
       env: { ...process.env, ...env },
@@ -76,6 +76,7 @@ function runProgram(file, args, { env, binary = false } = {}) {
       maxBuffer: 1024 * 1024 * 1024,
       encoding: binary ? 'buffer' : 'utf8',
       windowsHide: true,
+      signal,
     }, (err, stdout, stderr) => resolve({
       code: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
       stdout,

@@ -33,7 +33,7 @@ npm run setup
 npm start
 ```
 
-- **`npm run setup`** installs the programs Shiftdeck's tools use, with your system's own package manager, and checks that they work. Run it once (and again any time: it only installs what's missing).
+- **`npm run setup`** installs the programs Shiftdeck's tools use, with your system's own package manager, and checks that they work. Run it once (and again any time: it only installs what's missing). LibreOffice, for documents, is a large download: `npm run setup -- --no-documents` leaves it out.
 - **`npm start`** opens Shiftdeck in your browser at <http://localhost:5174>. When you close its tab, it stops by itself and deletes the temporary copies of your files.
 
 ## Features
@@ -42,6 +42,7 @@ npm start
 - ✂️ **Split a PDF** into single pages or page ranges (`1-3, 4, 5-8`)
 - 🧩 **Organize pages**: see every page as a thumbnail, put them in a new order (drag them, or use the keyboard), turn single pages and remove the ones you don't want
 - 🖼️ **PDF to images**: every page as PNG or JPEG, at the resolution you pick
+- 📝 **Documents to PDF**: Word, Excel, PowerPoint, OpenDocument, RTF, HTML and plain text, laid out as they would print
 - 🖼️ **Convert images** between PNG, JPEG, HEIC, WebP and TIFF, make them smaller, and remove their hidden details: where a photo was taken (GPS), the camera, the date
 - 🎵 **Convert audio** between MP3, M4A, OGG, Opus, FLAC and WAV, or take the sound out of a video
 - 🎬 **Convert video** to MP4, WebM, MOV or GIF, smaller (720p, 480p…) or without sound, with a progress bar and a Cancel button
@@ -69,6 +70,7 @@ The page in your browser sends your files to a small server on your own computer
 | [mutool](https://mupdf.com) (MuPDF) | PDF to images, page thumbnails | not needed | ✓ | ✓ |
 | [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
 | [FFmpeg](https://ffmpeg.org) | Converting audio and video | Homebrew | ✓ | ✓ |
+| [LibreOffice](https://www.libreoffice.org) | Documents to PDF | Homebrew (cask) | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
 
 On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` adds only qpdf (for strong passwords), ImageMagick (for images) and FFmpeg (for audio and video) there. If an engine is installed but doesn't start (a library it needs was updated, say), the app counts it as missing and `npm run setup` reinstalls it. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
@@ -78,7 +80,7 @@ On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, s
 | `PORT=8080` | Use a different port |
 | `NO_OPEN=1` | Don't open the browser |
 | `KEEP_RUNNING=1` | Keep the server running after the last tab closes |
-| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`, `ffmpeg`) |
+| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`, `ffmpeg`, `libreoffice`) |
 
 ### Passwords
 
@@ -103,7 +105,6 @@ npm test
 
 Shiftdeck aims to become a single local converter for the files you deal with every day:
 
-- **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
 - **More PDF tools**: OCR (searchable scans), certified digital signatures (PAdES)
 - **Desktop integration**: right-click a file to convert it, a watched folder
 

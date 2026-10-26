@@ -59,7 +59,7 @@ function selectTool(name) {
   $('toolHint').textContent = t(`tool_${name}_hint`);
   const tool = currentTool();
   $('fileInput').accept = tool.accepts.join(',');
-  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? 'acceptsPdf' : tool.accepts.includes('.mp3') ? 'acceptsAudio' : tool.accepts.includes('.mp4') ? 'acceptsVideo' : 'acceptsImages');
+  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? 'acceptsPdf' : tool.accepts.includes('.mp3') ? 'acceptsAudio' : tool.accepts.includes('.mp4') ? 'acceptsVideo' : tool.accepts.includes('.docx') ? 'acceptsDocuments' : 'acceptsImages');
   let visibleFields = 0;
   for (const el of $('optionsForm').querySelectorAll('[data-for]')) {
     const show = el.dataset.for.split(' ').includes(name);

@@ -189,6 +189,31 @@ async function makeMediaSamples(file) {
   make(['-f', 'lavfi', '-i', 'testsrc=size=640x480:rate=30:duration=60', ...video, file('long-clip.mp4')]);
 }
 
+// Documents for "Documents to PDF", one per kind LibreOffice reads: a real
+// DOCX (a ZIP of XML parts, made with the app's own ZIP writer), RTF,
+// HTML, CSV and plain text, each with a line of text to find on the page.
+async function makeDocumentSamples(file) {
+  const { writeZip } = require('../lib/zip');
+  const part = (name, text) => {
+    const where = file(`.docx-${name.replace(/[/[\]]/g, '_')}`);
+    fs.writeFileSync(where, text);
+    return { path: where, name };
+  };
+  const parts = [
+    part('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'),
+    part('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="r1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'),
+    part('word/document.xml', '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:rPr><w:sz w:val="72"/></w:rPr><w:t>Shiftdeck test document</w:t></w:r></w:p></w:body></w:document>'),
+  ];
+  const chunks = [];
+  await writeZip(parts, (buffer) => chunks.push(buffer));
+  fs.writeFileSync(file('letter.docx'), Buffer.concat(chunks));
+  for (const p of parts) fs.rmSync(p.path);
+  fs.writeFileSync(file('note.rtf'), '{\\rtf1\\ansi{\\fonttbl\\f0 Helvetica;}\\f0\\fs96 Shiftdeck test document\\par}');
+  fs.writeFileSync(file('page.html'), '<!doctype html><html><body><h1 style="font-size:48pt">Shiftdeck test document</h1></body></html>');
+  fs.writeFileSync(file('table.csv'), 'Name,Amount\nShiftdeck,42\nTest,7\n');
+  fs.writeFileSync(file('readme.txt'), 'Shiftdeck test document\n'.repeat(40));
+}
+
 async function makeSampleFiles() {
   fs.rmSync(DIR, { recursive: true, force: true });
   fs.mkdirSync(DIR, { recursive: true });
@@ -215,6 +240,7 @@ async function makeSampleFiles() {
   await make('protect', ['two-pages.pdf'], { password: PASSWORD }, 'protected.pdf');
   await writePhotoPdf(file('photo.pdf'));
   await makeMediaSamples(file);
+  await makeDocumentSamples(file);
   return DIR;
 }
 
