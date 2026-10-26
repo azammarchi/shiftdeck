@@ -89,7 +89,7 @@ test('files a tool can\'t use are marked, and nothing runs', async ({ page }) =>
   await page.getByRole('button', { name: 'Remove notes.txt' }).click();
   expect(await fileNames(page)).toEqual(['three-pages.pdf']);
   await convert(page);
-  await expect(page.locator('#status')).toHaveText('Add at least 2 file(s) for this tool.');
+  await expect(page.locator('#status')).toHaveText('Add at least 2 files for this tool.');
 });
 
 test.describe('without qpdf, on macOS', () => {
@@ -125,6 +125,6 @@ test.describe('with qpdf', () => {
     await addFiles(page, ['two-pages.pdf']);
     await page.locator('#passwordInput').fill(PASSWORD);
     await convert(page);
-    await expect(page.locator('#status')).toHaveText('Done: 1 file(s) ready.');
+    await expect(page.locator('#status')).toHaveText('Done: 1 file ready.');
   });
 });

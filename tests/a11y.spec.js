@@ -45,6 +45,6 @@ test('a whole conversion works from the keyboard', async ({ page }) => {
   await page.locator('#rangesInput').focus();
   await page.keyboard.type('1');
   await page.keyboard.press('Enter'); // submits the options form
-  await expect(page.locator('#status')).toHaveText('Done: 1 file(s) ready.');
+  await expect(page.locator('#status')).toHaveText('Done: 1 file ready.');
   await expect(page.locator('#status')).toHaveAttribute('role', 'status');
 });

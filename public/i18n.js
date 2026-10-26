@@ -62,8 +62,10 @@ const LANGUAGES = {
       strongEncryptionNotice: 'The password uses AES-256 encryption (via qpdf).',
       run: 'Convert',
       running: 'Working…',
-      needFiles: 'Add at least {count} file(s) for this tool.',
-      done: 'Done: {count} file(s) ready.',
+      needFiles_one: 'Add a file for this tool.',
+      needFiles_other: 'Add at least {count} files for this tool.',
+      done_one: 'Done: 1 file ready.',
+      done_other: 'Done: {count} files ready.',
       resultsHeading: 'Results',
       download: 'Download',
       downloadAll: 'Download all',
@@ -139,8 +141,10 @@ const LANGUAGES = {
       strongEncryptionNotice: 'La password usa la cifratura AES-256 (tramite qpdf).',
       run: 'Converti',
       running: 'In corso…',
-      needFiles: 'Aggiungi almeno {count} file per questo strumento.',
-      done: 'Fatto: {count} file pronti.',
+      needFiles_one: 'Aggiungi un file per questo strumento.',
+      needFiles_other: 'Aggiungi almeno {count} file per questo strumento.',
+      done_one: 'Fatto: 1 file pronto.',
+      done_other: 'Fatto: {count} file pronti.',
       resultsHeading: 'Risultati',
       download: 'Scarica',
       downloadAll: 'Scarica tutti',
@@ -181,8 +185,12 @@ function pickLanguage() {
   return DEFAULT_LANGUAGE;
 }
 
+// With a numeric `count`, the key's plural form is used when there is one:
+// t('done', { count: 3 }) reads done_other (done_one for 1, in English).
 function t(key, vars = {}) {
-  const text = LANGUAGES[currentLanguage].strings[key] ?? LANGUAGES[DEFAULT_LANGUAGE].strings[key] ?? key;
+  const lookup = (k) => LANGUAGES[currentLanguage].strings[k] ?? LANGUAGES[DEFAULT_LANGUAGE].strings[k];
+  const plural = typeof vars.count === 'number' ? `${key}_${new Intl.PluralRules(currentLanguage).select(vars.count)}` : null;
+  const text = (plural && (lookup(plural) ?? lookup(`${key}_other`))) ?? lookup(key) ?? key;
   return text.replace(/\{(\w+)\}/g, (_, name) => (name in vars ? vars[name] : `{${name}}`));
 }
 
