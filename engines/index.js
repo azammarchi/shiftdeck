@@ -330,6 +330,55 @@ const TOOLS = {
     },
   },
 
+  watermark: {
+    accepts: PDF_TYPES,
+    mode: 'each',
+    needs: () => missing('qpdf'),
+    async run(file, options, outDir) {
+      const text = typeof options.text === 'string' ? options.text.trim() : '';
+      if (!text) throw new ToolError('noText', 'type the watermark text');
+      if (text.length > 60) throw new ToolError('badOption', 'the watermark text can be at most 60 characters');
+      const style = option(options, 'style', ['diagonal', 'horizontal'], 'diagonal');
+      const opacity = integer(options, 'opacity', 5, 100, 20) / 100;
+      const { pages } = await unlockedInfo(file.path);
+      const layer = pages.map(({ size: [w, h] }) => {
+        // Across the middle of the page as shown: corner to corner when
+        // diagonal, sized to cover about three quarters of that line.
+        const angle = style === 'diagonal' ? (Math.atan2(h, w) * 180) / Math.PI : 0;
+        const span = style === 'diagonal' ? Math.hypot(w, h) * 0.75 : w * 0.75;
+        const size = Math.min(160, Math.max(12, span / textWidth(text, 1)));
+        const radians = (angle * Math.PI) / 180;
+        const half = textWidth(text, size) / 2;
+        const lift = size * 0.35; // half the height of capital letters
+        const x = w / 2 - half * Math.cos(radians) + lift * Math.sin(radians);
+        const y = h / 2 - half * Math.sin(radians) - lift * Math.cos(radians);
+        return { width: w, height: h, draw: [{ text, x, y, size, angle, opacity, color: [0.5, 0.5, 0.5] }] };
+      });
+      const output = path.join(outDir, `${stem(file.name)}-watermarked.pdf`);
+      await stamp(file.path, output, layer, {}, outDir);
+      return { outputs: [output] };
+    },
+  },
+
+  compress: {
+    accepts: PDF_TYPES,
+    mode: 'each',
+    needs: () => missing('qpdf'),
+    async run(file, options, outDir) {
+      const level = option(options, 'level', ['lossless', 'smaller', 'smallest'], 'smaller');
+      await unlockedInfo(file.path);
+      const output = path.join(outDir, `${stem(file.name)}-compressed.pdf`);
+      await qpdf.compress(file.path, output, { images: { lossless: null, smaller: 80, smallest: 55 }[level] }, outDir);
+      const [before, after] = await Promise.all([fsp.stat(file.path), fsp.stat(output)]);
+      // Some PDFs are already as small as they get: then the original is kept.
+      if (after.size >= before.size) {
+        await fsp.copyFile(file.path, output);
+        return { outputs: [output], warnings: ['notSmaller'] };
+      }
+      return { outputs: [output], saved: before.size - after.size };
+    },
+  },
+
   rotate: {
     accepts: PDF_TYPES,
     mode: 'each',
@@ -400,6 +449,7 @@ async function runTool(name, files, options, outDir) {
   const collect = (result) => {
     outputs.push(...result.outputs);
     if (result.encryption === 'RC4-128') warnings.add('weakEncryption');
+    for (const warning of result.warnings || []) warnings.add(warning);
   };
   if (tool.mode === 'combine') {
     collect(await tool.run(files, options, outDir));

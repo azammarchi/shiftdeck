@@ -5,7 +5,7 @@ const { test, expect } = require('./fixtures');
 const { openApp, pickTool, addFiles, fileNames, resultNames, convert, download } = require('./helpers');
 const { info, engines } = require('../engines');
 const { readZip } = require('../lib/zip');
-const { PASSWORD, darkPixels } = require('./sample-files');
+const { PASSWORD, darkPixels, changedPixels, sample } = require('./sample-files');
 
 test.beforeEach(async ({ page }) => openApp(page));
 
@@ -207,6 +207,31 @@ test.describe('page numbers and signatures', () => {
     await expect(page.getByLabel('Or type your name')).toHaveValue('');
     await convert(page);
     await expect(page.locator('#status')).toHaveText('Draw your signature, or type your name, first.');
+  });
+});
+
+test.describe('watermarks and compression', () => {
+  test.skip(() => !engines().qpdf, 'qpdf is not installed');
+
+  test('add the suggested watermark across the pages', async ({ page }) => {
+    const { runTool } = require('../engines');
+    await pickTool(page, 'watermark');
+    await expect(page.locator('#watermarkTextInput')).toHaveValue('CONFIDENTIAL');
+    await addFiles(page, ['two-pages.pdf']);
+    await convert(page);
+    const file = await download(page, 'two-pages-watermarked.pdf');
+    const render = async (pdf, dir) => (await runTool('pdf-to-images', [{ path: pdf, name: 'x.pdf' }], { dpi: 40 }, test.info().outputPath(dir))).outputs;
+    const [before, after] = [await render(sample('two-pages.pdf'), 'a'), await render(file, 'b')];
+    expect(changedPixels(before[0], after[0], [0.3, 0.3, 0.7, 0.7])).toBeGreaterThan(50);
+  });
+
+  test('compress a photo PDF and see how much it saved', async ({ page }) => {
+    await pickTool(page, 'compress');
+    await addFiles(page, ['photo.pdf']);
+    await convert(page);
+    await expect(page.locator('#status')).toHaveText(/^Done: from .+ to .+, \d+% smaller\.$/);
+    const percent = Number(/(\d+)% smaller/.exec(await page.locator('#status').textContent())[1]);
+    expect(percent).toBeGreaterThan(70);
   });
 });
 

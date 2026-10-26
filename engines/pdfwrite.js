@@ -69,7 +69,8 @@ function pdfString(text) {
 // pages: [{ width, height, draw: [item] }], or async iterable of them, where
 // an item is one of:
 //   { image: { width, height, jpeg?, components?, rgb?, alpha? }, box: [x, y, w, h] }
-//   { text, x, y, size, color?: [r, g, b] (0-1) }
+//   { text, x, y, size, color?: [r, g, b] (0-1), angle?: degrees, opacity?: 0-1 }
+//     (x, y is where the text starts, on its baseline; it turns around that point)
 // For "Images to PDF", { width, height, image, box } is the same as one image
 // item. Written as it goes, so only one page's images are in memory at a time.
 async function writePdf(output, pages) {
@@ -103,6 +104,7 @@ async function writePdf(output, pages) {
       const xObjects = [];
       const ops = [];
       let usesFont = false;
+      const states = [];
       for (const item of items) {
         if (item.image) {
           const { image } = item;
@@ -125,7 +127,16 @@ async function writePdf(output, pages) {
         } else if (item.text !== undefined) {
           usesFont = true;
           const [r, g, b] = item.color || [0, 0, 0];
-          ops.push(`BT ${num(r)} ${num(g)} ${num(b)} rg /F1 ${num(item.size)} Tf ${num(item.x)} ${num(item.y)} Td ${pdfString(item.text)} Tj ET`);
+          const radians = ((item.angle || 0) * Math.PI) / 180;
+          const [cos, sin] = [Math.cos(radians), Math.sin(radians)];
+          // A graphics state with the opacity, only when it isn't 1.
+          let state = '';
+          if (item.opacity !== undefined && item.opacity < 1) {
+            const name = `/GS${states.length}`;
+            states.push(`${name} << /Type /ExtGState /ca ${num(item.opacity)} /CA ${num(item.opacity)} >>`);
+            state = `${name} gs `;
+          }
+          ops.push(`q ${state}BT ${num(r)} ${num(g)} ${num(b)} rg /F1 ${num(item.size)} Tf ${cos.toFixed(4)} ${sin.toFixed(4)} ${(-sin).toFixed(4)} ${cos.toFixed(4)} ${num(item.x)} ${num(item.y)} Tm ${pdfString(item.text)} Tj ET Q`);
         }
       }
       const [pageId, contentsId] = [next++, next++];
@@ -134,6 +145,7 @@ async function writePdf(output, pages) {
       const resources = [
         xObjects.length ? `/XObject << ${xObjects.join(' ')} >>` : '',
         usesFont ? '/Font << /F1 3 0 R >>' : '',
+        states.length ? `/ExtGState << ${states.join(' ')} >>` : '',
       ].filter(Boolean).join(' ');
       object(pageId, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(page.width)} ${num(page.height)}] /Resources << ${resources} >> /Contents ${contentsId} 0 R >>`);
       kids.push(`${pageId} 0 R`);

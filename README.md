@@ -38,6 +38,8 @@ npm start
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
 - 🔢 **Page numbers**: "1", "1 / 12" or "Page 1 of 12", in any corner or centred, from any number, with or without the first page
 - ✍️ **Sign**: draw your signature with the mouse, a finger or a pen (or type your name) and place it on any page; only the ink goes on the page. It's a drawn signature, not a certified digital one
+- 💧 **Watermark**: a faint DRAFT or CONFIDENTIAL (or any text) across every page, diagonal or horizontal
+- 🗜️ **Compress PDF**: make a PDF lighter for email; scans and screenshots often shrink by 80–90%
 - 🔄 **Rotate** every page of a PDF
 - 🔒 **Add a password** with AES-256 encryption, and 🔓 **remove one** you know
 - 🗂️ **Many files at once**: tools that work on one file do each of them in turn
@@ -53,7 +55,7 @@ The page in your browser sends your files to a small server on your own computer
 
 | Engine | Used for | macOS | Linux | Windows |
 | --- | --- | --- | --- | --- |
-| [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256), stamping page numbers and signatures | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
+| [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256), stamping page numbers, signatures and watermarks, compressing | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
 | [mutool](https://mupdf.com) (MuPDF) | PDF to images, page thumbnails | not needed | ✓ | ✓ |
 | [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
@@ -92,7 +94,7 @@ Shiftdeck aims to become a single local converter for the files you deal with ev
 
 - **Audio** and **video**: WAV, MP3, M4A, MP4, MKV, WebM, GIF… with ffmpeg
 - **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
-- **More PDF tools**: compress, watermarks, OCR, certified digital signatures (PAdES)
+- **More PDF tools**: OCR (searchable scans), certified digital signatures (PAdES)
 - **Desktop integration**: right-click a file to convert it, a watched folder
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).

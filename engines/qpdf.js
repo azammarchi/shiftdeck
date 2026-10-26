@@ -96,6 +96,17 @@ function organize(input, output, pages, workDir) {
 const overlay = (input, layer, output, { to = '1-z', from = '1-z' } = {}, workDir) =>
   qpdf([input, '--overlay', layer, `--to=${to}`, `--from=${from}`, '--', output], { workDir });
 
+// Rewrites a PDF smaller: objects packed into compressed object streams,
+// every stream recompressed at the highest level, unused objects dropped.
+// With `images`, pictures stored without JPEG compression are turned into
+// JPEGs at that quality when that makes them smaller (qpdf leaves existing
+// JPEGs and small images alone).
+function compress(input, output, { images } = {}, workDir) {
+  const args = [input, '--object-streams=generate', '--compress-streams=y', '--recompress-flate', '--compression-level=9', '--remove-unreferenced-resources=yes'];
+  if (images) args.push('--optimize-images', `--jpeg-quality=${images}`);
+  return qpdf([...args, output], { workDir });
+}
+
 const encrypt = (input, output, password, workDir) =>
   qpdfJob({ inputFile: input, outputFile: output, encrypt: { userPassword: password, ownerPassword: password, '256bit': {} } }, { workDir });
 
@@ -110,6 +121,7 @@ module.exports = {
   rotate,
   organize,
   overlay,
+  compress,
   encrypt,
   decrypt,
 };

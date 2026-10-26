@@ -77,6 +77,8 @@ function selectTool(name) {
   if (name === 'organize') loadPages();
   if (name === 'page-numbers') updateNumberFormats();
   if (name === 'sign') sizeSignaturePad();
+  // A sensible watermark to start from, in the app's language.
+  if (name === 'watermark' && !$('watermarkTextInput').dataset.edited) $('watermarkTextInput').value = t('watermarkDefault');
   $('results').hidden = true;
   setStatus('');
   renderFiles();
@@ -555,6 +557,11 @@ async function runTool() {
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(body.error || response.statusText), { code: body.code });
     showResults(body.outputs, body.bundle, body.warnings || []);
+    if (state.tool === 'compress' && !(body.warnings || []).includes('notSmaller')) {
+      const before = usable.reduce((sum, f) => sum + f.size, 0);
+      const after = body.outputs.reduce((sum, o) => sum + o.size, 0);
+      setStatus(t('compressed', { before: formatSize(before), after: formatSize(after), percent: Math.round((1 - after / before) * 100) }), 'success');
+    }
   } catch (err) {
     const message = err instanceof TypeError ? t('serverDown') : errorText(err.code, err.message, { name: usable[0]?.name });
     setStatus(message, 'error');
@@ -600,6 +607,7 @@ function showResults(outputs, bundle, warnings) {
   $('results').hidden = false;
   const text = [t('done', { count: outputs.length })];
   if (warnings.includes('weakEncryption')) text.push(t('weakEncryptionNotice'));
+  if (warnings.includes('notSmaller')) text.push(t('notSmaller'));
   setStatus(text.join(' '), warnings.length ? 'warning' : 'success');
 }
 
@@ -682,6 +690,7 @@ async function init() {
     $('chooseButton').focus();
   });
   $('imageFormatSelect').addEventListener('change', updateImageOptions);
+  $('watermarkTextInput').addEventListener('input', (e) => { e.target.dataset.edited = 'yes'; });
   $('pageGrid').addEventListener('click', onPageAction);
   $('resetPagesButton').addEventListener('click', () => {
     state.pages.sort((a, b) => a.page - b.page);

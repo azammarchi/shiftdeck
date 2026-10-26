@@ -11,7 +11,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { runTool, info, engines, pageThumbnails } = require('../engines');
 const { findProgram } = require('../engines/run');
-const { makeSampleFiles, sample, hasSample, imageSize, darkPixels, signatureDataUrl, PASSWORD } = require('./sample-files');
+const { makeSampleFiles, sample, hasSample, imageSize, darkPixels, changedPixels, signatureDataUrl, PASSWORD } = require('./sample-files');
 
 const A4 = [595, 842];
 const A4_LANDSCAPE = [842, 595];
@@ -212,6 +212,43 @@ for (const mode of MODES) {
       await rejectsWith(run('sign', ['mixed.pdf'], { signature: 'data:image/png;base64,AAAA' }), 'badOption');
       await rejectsWith(run('sign', ['mixed.pdf'], { signature: signatureDataUrl(), page: 9 }), 'badOption');
       await rejectsWith(run('sign', ['protected.pdf'], { signature: signatureDataUrl() }), 'locked');
+    });
+
+    const renders = async (pdf) => (await runTool('pdf-to-images', [{ path: pdf, name: 'check.pdf' }], { format: 'png', dpi: 40 }, outDir())).outputs;
+
+    test('a watermark crosses the middle of every page, and leaves the corners alone', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      const { outputs } = await run('watermark', ['mixed.pdf'], { text: 'CONFIDENTIAL', opacity: 60 });
+      assert.equal(path.basename(outputs[0]), 'mixed-watermarked.pdf');
+      const [before, after] = [await renders(sample('mixed.pdf')), await renders(outputs[0])];
+      for (let i = 0; i < 3; i++) {
+        assert.ok(changedPixels(before[i], after[i], [0.3, 0.3, 0.7, 0.7]) > 50, `page ${i + 1} middle`);
+        // Inside the corner, past the outermost pixel row: rewriting a page can
+        // shift its edge by a fraction of a pixel.
+        assert.equal(changedPixels(before[i], after[i], [0.02, 0.02, 0.12, 0.12]), 0, `page ${i + 1} corner`);
+      }
+      const flat = await run('watermark', ['two-pages.pdf'], { text: 'DRAFT', style: 'horizontal' });
+      const [b, a] = [await renders(sample('two-pages.pdf')), await renders(flat.outputs[0])];
+      assert.ok(changedPixels(b[0], a[0], [0.1, 0.45, 0.9, 0.55]) > 50);
+      assert.equal(changedPixels(b[0], a[0], [0.02, 0.02, 0.98, 0.3]), 0);
+      await rejectsWith(run('watermark', ['mixed.pdf'], { text: ' ' }), 'noText');
+      await rejectsWith(run('watermark', ['mixed.pdf'], { text: 'x', opacity: 0 }), 'badOption');
+    });
+
+    test('compress makes photo PDFs much smaller, and never bigger', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      const original = fs.statSync(sample('photo.pdf')).size;
+      const smaller = await run('compress', ['photo.pdf'], { level: 'smaller' });
+      assert.equal(path.basename(smaller.outputs[0]), 'photo-compressed.pdf');
+      assert.ok(fs.statSync(smaller.outputs[0]).size < original * 0.3, 'smaller is under 30%');
+      assert.equal((await info(smaller.outputs[0])).pages.length, 1);
+      const smallest = await run('compress', ['photo.pdf'], { level: 'smallest' });
+      assert.ok(fs.statSync(smallest.outputs[0]).size < fs.statSync(smaller.outputs[0]).size);
+      const lossless = await run('compress', ['photo.pdf'], { level: 'lossless' });
+      assert.ok(fs.statSync(lossless.outputs[0]).size <= original);
+      // Already compressed: the result is never bigger than what went in.
+      const again = await runTool('compress', [{ path: smallest.outputs[0], name: 'again.pdf' }], { level: 'lossless' }, outDir());
+      assert.ok(fs.statSync(again.outputs[0]).size <= fs.statSync(smallest.outputs[0]).size);
+      await rejectsWith(run('compress', ['photo.pdf'], { level: 'tiny' }), 'badOption');
+      await rejectsWith(run('compress', ['protected.pdf'], {}), 'locked');
     });
 
     test('protect and unlock with qpdf use AES-256', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {

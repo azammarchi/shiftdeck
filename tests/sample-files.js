@@ -197,6 +197,7 @@ async function makeSampleFiles() {
   // Portrait, landscape, portrait: page order shows in the page sizes.
   await make('images-to-pdf', ['p1.png', 'landscape.png', 'p3.png'], { pageSize: 'a4' }, 'mixed.pdf');
   await make('protect', ['two-pages.pdf'], { password: PASSWORD }, 'protected.pdf');
+  await writePhotoPdf(file('photo.pdf'));
   return DIR;
 }
 
@@ -227,6 +228,39 @@ function darkPixels(pngPath, [left, top, right, bottom]) {
   return count;
 }
 
+// How many pixels differ between two renderings of the same page, in a
+// region given as fractions of the size (see darkPixels).
+function changedPixels(pngA, pngB, [left, top, right, bottom]) {
+  const { readPng } = require('../lib/png');
+  const a = readPng(fs.readFileSync(pngA));
+  const b = readPng(fs.readFileSync(pngB));
+  if (a.width !== b.width || a.height !== b.height) throw new Error('the renderings differ in size');
+  let count = 0;
+  for (let y = Math.floor(top * a.height); y < Math.ceil(bottom * a.height); y++) {
+    for (let x = Math.floor(left * a.width); x < Math.ceil(right * a.width); x++) {
+      const i = (y * a.width + x) * 3;
+      if (Math.abs(a.rgb[i] - b.rgb[i]) + Math.abs(a.rgb[i + 1] - b.rgb[i + 1]) + Math.abs(a.rgb[i + 2] - b.rgb[i + 2]) > 30) count++;
+    }
+  }
+  return count;
+}
+
+// A photo-like PDF stored losslessly (smooth gradients with grain), which
+// compresses a lot once its picture becomes a JPEG.
+async function writePhotoPdf(file) {
+  const { writePdf } = require('../engines/pdfwrite');
+  const [width, height] = [1200, 900];
+  const rgb = Buffer.alloc(width * height * 3);
+  let seed = 1;
+  const grain = () => ((seed = (seed * 1103515245 + 12345) >>> 0) % 32);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      rgb.set([((x * 255) / width + grain()) & 255, ((y * 255) / height + grain()) & 255, 128 + grain()], (y * width + x) * 3);
+    }
+  }
+  await writePdf(file, [{ width: 600, height: 450, image: { width, height, rgb }, box: [0, 0, 600, 450] }]);
+}
+
 const signatureDataUrl = () => `data:image/png;base64,${fs.readFileSync(sample('signature.png')).toString('base64')}`;
 
-module.exports = { makeSampleFiles, sample, hasSample, imageSize, darkPixels, signatureDataUrl, PASSWORD };
+module.exports = { makeSampleFiles, sample, hasSample, imageSize, darkPixels, changedPixels, signatureDataUrl, PASSWORD };
