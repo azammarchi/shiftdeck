@@ -2,29 +2,35 @@
 // Merges, splits and rotates PDFs, reads their pages, and adds or removes
 // passwords with AES-256 encryption.
 //
-// Arguments, passwords included, go through a file only this user can read
-// (qpdf's @file syntax, one argument per line), so they never show up in `ps`.
+// When a command carries a password, its arguments go through a file only
+// this user can read (qpdf's @file syntax, one argument per line), so the
+// password never shows up in `ps`. Other commands get their arguments
+// directly, which is just as safe: no shell is ever involved.
 const { findProgram, runProgram, withPrivateFile, ToolError } = require('./run');
 
 // Looked up on every use, so installing qpdf needs no restart.
 const program = () => findProgram('qpdf');
 
+function check(result, password) {
+  // Exit code 3 means it worked, with warnings about the input.
+  if (result.code === 0 || result.code === 3) return result;
+  if (/invalid password/i.test(result.stderr)) {
+    throw password ? new ToolError('wrongPassword', 'wrong password') : new ToolError('locked', 'password protected');
+  }
+  if (/not a PDF|can't find PDF header|unable to find trailer|startxref/i.test(result.stderr)) {
+    throw new ToolError('notPdf', result.stderr.trim());
+  }
+  throw new ToolError('failed', result.stderr.trim() || `qpdf exited with code ${result.code}`);
+}
+
 async function qpdf(args, { workDir, password } = {}) {
   const file = program();
   if (!file) throw new ToolError('noEngine', 'qpdf is not installed');
+  if (!password) return check(await runProgram(file, args));
   if (args.some((arg) => /[\r\n]/.test(arg))) throw new ToolError('badOption', 'line breaks are not allowed in passwords or file names');
-  return withPrivateFile(workDir, `${args.join('\n')}\n`, async (argsFile) => {
-    // Exit code 3 means it worked, with warnings about the input.
-    const result = await runProgram(file, [`@${argsFile}`]);
-    if (result.code === 0 || result.code === 3) return result;
-    if (/invalid password/i.test(result.stderr)) {
-      throw password ? new ToolError('wrongPassword', 'wrong password') : new ToolError('locked', 'password protected');
-    }
-    if (/not a PDF|can't find PDF header|unable to find trailer|startxref/i.test(result.stderr)) {
-      throw new ToolError('notPdf', result.stderr.trim());
-    }
-    throw new ToolError('failed', result.stderr.trim() || `qpdf exited with code ${result.code}`);
-  });
+  // No newline after the last argument: some qpdf versions read the empty
+  // line that would follow as one more (empty) argument.
+  return withPrivateFile(workDir, args.join('\n'), async (argsFile) => check(await runProgram(file, [`@${argsFile}`]), password));
 }
 
 // Follows /Parent links, since a page can inherit its /MediaBox and /Rotate.
@@ -72,7 +78,7 @@ const rotate = (input, output, degrees, workDir) =>
   qpdf([input, output, `--rotate=+${degrees}`], { workDir });
 
 const encrypt = (input, output, password, workDir) =>
-  qpdf(['--encrypt', password, password, '256', '--', input, output], { workDir });
+  qpdf(['--encrypt', password, password, '256', '--', input, output], { workDir, password });
 
 const decrypt = (input, output, password, workDir) =>
   qpdf([`--password=${password}`, '--decrypt', input, output], { workDir, password });
