@@ -60,6 +60,25 @@ npm start
 - ♿ **Accessible**: keyboard-only use, screen reader labels and announcements, WCAG 2.1 AA contrast ([details](ACCESSIBILITY.md))
 - 📦 **No npm dependencies**: plain HTML, CSS and JavaScript, plus well-known open-source converters
 
+## Command line and watched folder
+
+Every tool also works from a terminal, with the same engines:
+
+```bash
+npm install -g github:azammarchi/shiftdeck   # adds the shiftdeck command
+```
+
+```bash
+shiftdeck                                          # opens the app, like npm start
+shiftdeck tools                                    # which tools work on this computer
+shiftdeck convert-images --format jpeg --max-size 1600 *.heic
+shiftdeck merge chapter1.pdf chapter2.pdf --out ~/Desktop
+shiftdeck compress --level smallest report.pdf
+shiftdeck watch ~/Downloads/to-convert --tool convert-images --format jpeg
+```
+
+Results go to the current folder, or to `--out`, and never overwrite a file that's already there. `shiftdeck watch` converts every file that lands in a folder (once it has finished copying) into its `converted` subfolder, until you press Ctrl+C. `shiftdeck help` lists every tool's options.
+
 ## How it works
 
 The page in your browser sends your files to a small server on your own computer (`server.js`, listening only on `localhost`), which runs the conversion and hands back the results as downloads. The conversions are done by **engines**, programs that `npm run setup` installs:
@@ -106,7 +125,7 @@ npm test
 Shiftdeck aims to become a single local converter for the files you deal with every day:
 
 - **More PDF tools**: OCR (searchable scans), certified digital signatures (PAdES)
-- **Desktop integration**: right-click a file to convert it, a watched folder
+- **Desktop integration**: right-click a file in Finder or Explorer to convert it
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 

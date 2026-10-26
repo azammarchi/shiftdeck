@@ -29,6 +29,7 @@ Where things live:
 | `public/i18n.js` | All interface text, in every language |
 | `public/demo.js` | The online demo: answers the app's requests inside the browser, for the tools a browser can do alone |
 | `public/style.css` | Styles |
+| `bin/shiftdeck.js` | The `shiftdeck` command: tools from a terminal, and the watched folder |
 | `server.js` | Tiny local server (no dependencies): uploads, running tools, downloads |
 | `engines/index.js` | The tools: which files they take, their options, which engine runs each one |
 | `engines/pdfkit.js`, `pdfkit.jxa.js` | macOS: PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |

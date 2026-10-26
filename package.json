@@ -3,11 +3,14 @@
   "version": "0.3.0",
   "description": "Convert and edit files on your computer, locally: convert, resize and clean up images; merge, split, rotate and password-protect PDFs; turn PDFs into images and images into PDFs. macOS, Linux and Windows.",
   "private": true,
+  "bin": {
+    "shiftdeck": "bin/shiftdeck.js"
+  },
   "scripts": {
     "setup": "node scripts/setup.js",
     "start": "node server.js",
     "test": "npm run test:engines && npm run test:e2e",
-    "test:engines": "node --test tests/engines.test.js tests/zip.test.js",
+    "test:engines": "node --test --test-concurrency=1 tests/engines.test.js tests/zip.test.js tests/cli.test.js",
     "test:e2e": "playwright test",
     "test:install": "playwright install webkit firefox chromium"
   },
