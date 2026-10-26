@@ -2,7 +2,7 @@
 // options, convert, download. The downloads are checked with PDFKit.
 const { test, expect } = require('./fixtures');
 const { openApp, pickTool, addFiles, fileNames, resultNames, convert, download } = require('./helpers');
-const { info } = require('../engines');
+const { info, engines } = require('../engines');
 const { PASSWORD } = require('./sample-files');
 
 test.beforeEach(async ({ page }) => openApp(page));
@@ -92,13 +92,14 @@ test('files a tool can\'t use are marked, and nothing runs', async ({ page }) =>
   await expect(page.locator('#status')).toHaveText('Add at least 2 file(s) for this tool.');
 });
 
-test.describe('without qpdf', () => {
+test.describe('without qpdf, on macOS', () => {
+  test.skip(() => !engines().pdfkit, 'only PDFKit can protect a PDF without qpdf');
   test.use({ serverEnv: { SHIFTDECK_DISABLE_ENGINES: 'qpdf' } });
 
   test('adding a password warns that the encryption is weak', async ({ page }) => {
     await pickTool(page, 'protect');
     await expect(page.locator('#weakNotice')).toBeVisible();
-    await expect(page.locator('#weakNotice')).toContainText('brew install qpdf');
+    await expect(page.locator('#weakNotice')).toContainText('npm run setup');
     await addFiles(page, ['two-pages.pdf']);
 
     await convert(page);
@@ -115,7 +116,7 @@ test.describe('without qpdf', () => {
 });
 
 test.describe('with qpdf', () => {
-  test.skip(() => !require('../engines').engines().qpdf, 'qpdf is not installed');
+  test.skip(() => !engines().qpdf, 'qpdf is not installed');
 
   test('adding a password uses AES-256', async ({ page }) => {
     await pickTool(page, 'protect');

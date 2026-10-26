@@ -63,7 +63,11 @@ function selectTool(name) {
     el.hidden = !show;
     if (show && el.classList.contains('field')) visibleFields++;
   }
-  $('weakNotice').hidden = name !== 'protect' || state.engines.qpdf !== false;
+  const missing = tool.needs || [];
+  $('missingNotice').textContent = t('missingEngines', { engines: new Intl.ListFormat(currentLanguage).format(missing) });
+  $('missingNotice').hidden = missing.length === 0;
+  // Only PDFKit, on macOS, can protect a PDF without qpdf, and only weakly.
+  $('weakNotice').hidden = name !== 'protect' || state.engines.qpdf !== false || !state.engines.pdfkit;
   $('strongNotice').hidden = name !== 'protect' || !state.engines.qpdf;
   $('optionsHeading').hidden = visibleFields === 0;
   $('results').hidden = true;
@@ -173,7 +177,7 @@ function renderFiles() {
 
 function updateRunButton() {
   const run = $('runButton');
-  run.disabled = state.busy || !state.engines.pdfkit;
+  run.disabled = state.busy || (currentTool().needs || []).length > 0;
   run.setAttribute('aria-busy', String(state.busy));
   $('runLabel').textContent = t(state.busy ? 'running' : 'run');
 }
@@ -319,10 +323,6 @@ async function loadStatus() {
     $('engineNotice').textContent = t('serverDown');
     $('engineNotice').hidden = false;
     return;
-  }
-  if (!state.engines.pdfkit) {
-    $('engineNotice').textContent = t('notMac');
-    $('engineNotice').hidden = false;
   }
 }
 

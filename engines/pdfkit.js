@@ -1,12 +1,15 @@
 // Engine: Apple's PDFKit, reached through JavaScript for Automation. Ships with
-// every Mac, so it's always there on macOS. See pdfkit.jxa.js for the commands.
+// every Mac, so on macOS the PDF tools work with nothing installed. See
+// pdfkit.jxa.js for the commands.
 const path = require('path');
-const { findProgram, runProgram, ToolError } = require('./run');
+const { findProgram, runProgram, isDisabled, ToolError } = require('./run');
 
 const SCRIPT = path.join(__dirname, 'pdfkit.jxa.js');
-const osascript = process.platform === 'darwin' ? findProgram('osascript') : null;
+
+const program = () => (process.platform === 'darwin' && !isDisabled('pdfkit') ? findProgram('osascript') : null);
 
 async function pdfkit(command, args, { password } = {}) {
+  const osascript = program();
   if (!osascript) throw new ToolError('noEngine', 'PDFKit needs macOS');
   const env = password ? { SHIFTDECK_PASSWORD: password } : {};
   const { stdout, stderr } = await runProgram(osascript, ['-l', 'JavaScript', SCRIPT, command, ...args.map(String)], { env });
@@ -22,4 +25,4 @@ async function pdfkit(command, args, { password } = {}) {
   return result;
 }
 
-module.exports = { available: !!osascript, pdfkit };
+module.exports = { available: () => !!program(), pdfkit };

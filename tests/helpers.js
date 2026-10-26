@@ -4,6 +4,7 @@ const { sample } = require('./sample-files');
 async function openApp(page) {
   await page.goto('/');
   await expect(page.locator('#runButton')).toBeEnabled();
+  await expect(page.locator('#missingNotice')).toBeHidden();
 }
 
 async function pickTool(page, name) {

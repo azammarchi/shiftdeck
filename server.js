@@ -176,7 +176,7 @@ function sendOutput(res, id) {
   fs.createReadStream(output.path).pipe(res);
 }
 
-// GET    /api/status           → { engines, tools }
+// GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs } } }
 // PUT    /api/uploads?name=…   ← file bytes → { id, name, size }
 // DELETE /api/uploads/:id
 // POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], warnings }
@@ -186,7 +186,7 @@ async function handleApi(req, res, url) {
   if (extra) return sendError(res, 404, 'notFound', 'Not found');
 
   if (section === 'status' && !id && req.method === 'GET') {
-    const tools = Object.fromEntries(Object.entries(TOOLS).map(([name, tool]) => [name, { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1 }]));
+    const tools = Object.fromEntries(Object.entries(TOOLS).map(([name, tool]) => [name, { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1, needs: tool.needs() }]));
     return sendJson(res, 200, { engines: engines(), tools });
   }
   if (section === 'uploads' && !id && req.method === 'PUT') return receiveUpload(req, res, url);
@@ -283,8 +283,10 @@ function listen(port, attemptsLeft) {
 server.on('listening', () => {
   const url = `http://localhost:${server.address().port}`;
   const found = engines();
+  const missing = Object.entries(TOOLS).flatMap(([, tool]) => tool.needs()).filter((v, i, all) => all.indexOf(v) === i);
   console.log(`Shiftdeck is running at ${url}`);
-  console.log(`Engines: PDFKit ${found.pdfkit ? 'yes' : 'no (needs macOS)'}, qpdf ${found.qpdf ? 'yes' : 'no (brew install qpdf for AES-256 passwords)'}`);
+  console.log(`Engines: ${Object.entries(found).map(([name, ok]) => `${name} ${ok ? 'yes' : 'no'}`).join(', ')}`);
+  if (missing.length) console.log(`Some tools need ${missing.join(', ')}: run npm run setup to install them.`);
   if (!process.env.NO_OPEN) openBrowser(url);
 });
 
