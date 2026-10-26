@@ -20,6 +20,7 @@ Only the latest version on the `main` branch receives fixes.
 - Uploads and results are stored under random names in a temporary folder only your user can open (mode 700), deleted when the server stops.
 - Converters are always run with an argument list, never through a shell, so a file name can't become a command.
 - Passwords never appear on a command line, where other users of the computer could see them with `ps`: PDFKit gets them through an environment variable, qpdf through a JSON job file only your user can read, deleted right after.
+- The online demo (GitHub Pages) has no server: the tools it offers run inside the page, and files never leave the browser.
 - Without qpdf (only possible on macOS), PDF passwords use RC4 128-bit, the most PDFKit can write. It is weak, and the app says so.
 - `npm run setup` installs engines only from the system's own package manager (Homebrew, apt, dnf, pacman, zypper, winget, Chocolatey), never from downloads of its own.
 

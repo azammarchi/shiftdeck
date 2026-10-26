@@ -2,6 +2,8 @@
 # on every push and pull request. Each machine installs its engines with
 # `npm run setup`, so the installer is tested too. On macOS `--all` also
 # installs the cross-platform engines, so both engine sets are tested there.
+# When the tests pass on main, the online demo (public/, see demo.js) is
+# published to GitHub Pages.
 name: CI
 
 on:
@@ -24,8 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # A fixed image: jobs on macos-latest waited for a runner for hours.
           - name: macOS
-            os: macos-latest
+            os: macos-15
             setup: npm run setup -- --all
             browsers: ~/Library/Caches/ms-playwright
             install-browsers: npx playwright install webkit firefox chromium
@@ -79,3 +82,26 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+  deploy:
+    name: Deploy demo
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deployment
+        uses: actions/deploy-pages@v4

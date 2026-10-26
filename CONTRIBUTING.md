@@ -27,11 +27,12 @@ Where things live:
 | `public/index.html` | Page structure, icons, tool options |
 | `public/app.js` | The interface: tools, files, running a tool, results |
 | `public/i18n.js` | All interface text, in every language |
+| `public/demo.js` | The online demo: answers the app's requests inside the browser, for the tools a browser can do alone |
 | `public/style.css` | Styles |
 | `server.js` | Tiny local server (no dependencies): uploads, running tools, downloads |
 | `engines/index.js` | The tools: which files they take, their options, which engine runs each one |
 | `engines/pdfkit.js`, `pdfkit.jxa.js` | macOS: PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |
-| `engines/qpdf.js`, `mutool.js`, `imagemagick.js` | The cross-platform engines |
+| `engines/qpdf.js`, `mutool.js`, `imagemagick.js`, `ffmpeg.js` | The cross-platform engines |
 | `engines/pdfwrite.js` | A tiny PDF writer (one image per page), so images to PDF needs no PDF engine |
 | `engines/run.js` | Finding programs on every system and running them safely |
 | `lib/zip.js` | A tiny ZIP writer, for **Download all** |

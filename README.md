@@ -8,11 +8,19 @@
   <img src="https://img.shields.io/badge/runs%20on-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-555.svg" alt="Runs on macOS, Linux and Windows">
 </p>
 
+<p align="center">
+  <a href="https://azammarchi.github.io/shiftdeck/"><strong>▶ Try the online demo</strong></a>
+</p>
+
 **Shiftdeck** converts and edits files on your computer, in a window in your browser. Merge, split and rotate PDFs, turn PDFs into images and photos into PDFs, add or remove a password. No accounts and no uploads: your files go from your browser to your own computer and nowhere else.
 
 <p align="center">
   <img src="docs/screenshot.png" alt="Shiftdeck turning three iPhone photos into one PDF: the tools on the left, the files in order, the A4 page option and the result ready to download" width="860">
 </p>
+
+## Try it online
+
+The [online demo](https://azammarchi.github.io/shiftdeck/) runs **Convert images** and **Images to PDF** entirely inside your browser: your files never leave the page, and there's nothing to install. The other tools need programs a web page can't use, so they run in the app on your computer: the demo shows them and explains how to get it.
 
 ## Quick start
 
@@ -35,6 +43,8 @@ npm start
 - 🧩 **Organize pages**: see every page as a thumbnail, put them in a new order (drag them, or use the keyboard), turn single pages and remove the ones you don't want
 - 🖼️ **PDF to images**: every page as PNG or JPEG, at the resolution you pick
 - 🖼️ **Convert images** between PNG, JPEG, HEIC, WebP and TIFF, make them smaller, and remove their hidden details: where a photo was taken (GPS), the camera, the date
+- 🎵 **Convert audio** between MP3, M4A, OGG, Opus, FLAC and WAV, or take the sound out of a video
+- 🎬 **Convert video** to MP4, WebM, MOV or GIF, smaller (720p, 480p…) or without sound, with a progress bar and a Cancel button
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
 - 🔢 **Page numbers**: "1", "1 / 12" or "Page 1 of 12", in any corner or centred, from any number, with or without the first page
 - ✍️ **Sign**: draw your signature with the mouse, a finger or a pen (or type your name) and place it on any page; only the ink goes on the page. It's a drawn signature, not a certified digital one
@@ -58,16 +68,17 @@ The page in your browser sends your files to a small server on your own computer
 | [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256), stamping page numbers, signatures and watermarks, compressing | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
 | [mutool](https://mupdf.com) (MuPDF) | PDF to images, page thumbnails | not needed | ✓ | ✓ |
 | [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
+| [FFmpeg](https://ffmpeg.org) | Converting audio and video | Homebrew | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
 
-On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` adds only qpdf (for strong passwords) and ImageMagick (for images) there. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
+On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` adds only qpdf (for strong passwords), ImageMagick (for images) and FFmpeg (for audio and video) there. If an engine is installed but doesn't start (a library it needs was updated, say), the app counts it as missing and `npm run setup` reinstalls it. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
 
 | Environment variable | Effect |
 | --- | --- |
 | `PORT=8080` | Use a different port |
 | `NO_OPEN=1` | Don't open the browser |
 | `KEEP_RUNNING=1` | Keep the server running after the last tab closes |
-| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`) |
+| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`, `ffmpeg`) |
 
 ### Passwords
 
@@ -92,7 +103,6 @@ npm test
 
 Shiftdeck aims to become a single local converter for the files you deal with every day:
 
-- **Audio** and **video**: WAV, MP3, M4A, MP4, MKV, WebM, GIF… with ffmpeg
 - **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
 - **More PDF tools**: OCR (searchable scans), certified digital signatures (PAdES)
 - **Desktop integration**: right-click a file to convert it, a watched folder
