@@ -1,4 +1,4 @@
-const { expect } = require('./fixtures');
+const { test, expect } = require('./fixtures');
 const { sample } = require('./sample-files');
 
 async function openApp(page) {
@@ -30,13 +30,17 @@ async function convert(page) {
   await expect(page.locator('#status')).not.toHaveText(/Working|In corso/);
 }
 
-// Downloads one result through its link and returns the saved path.
+// Downloads one result through its link and returns the saved path. It's
+// saved in the test's own output folder: Playwright keeps downloads in a
+// hidden folder, which Ubuntu's AppArmor profile for qpdf won't let it open.
 async function download(page, name) {
   const started = page.waitForEvent('download');
   await page.locator('#resultList li').filter({ hasText: name }).getByRole('link').click();
   const file = await started;
   expect(file.suggestedFilename()).toBe(name);
-  return file.path();
+  const saved = test.info().outputPath(name);
+  await file.saveAs(saved);
+  return saved;
 }
 
 module.exports = { openApp, pickTool, addFiles, fileNames, resultNames, convert, download };
