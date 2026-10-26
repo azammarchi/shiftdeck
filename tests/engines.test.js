@@ -4,6 +4,7 @@
 // cross-platform engines (qpdf, mutool, ImageMagick) anywhere.
 // `npm run test:engines`.
 const { describe, test, before, after } = require('node:test');
+const nodeTest = test;
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
@@ -18,6 +19,7 @@ const A4_LANDSCAPE = [842, 595];
 
 const input = (name) => ({ path: sample(name), name });
 const outDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'shiftdeck-test-'));
+const hasMedia = () => hasSample('clip.mp4');
 const run = (tool, names, options = {}) => runTool(tool, names.map(input), options, outDir());
 const sizes = async (file, password) => (await info(file, password)).pages.map((p) => p.size);
 const pixelSize = (file) => {
@@ -393,6 +395,87 @@ describe('Convert images', { skip: !engines().imagemagick && 'ImageMagick is not
     const fake = path.join(dir, 'fake.png');
     fs.copyFileSync(sample('notes.txt'), fake);
     await rejectsWith(runTool('convert-images', [{ path: fake, name: 'fake.png' }], { format: 'jpeg' }, dir), 'notImage');
+  });
+});
+
+// The media samples only exist once before() has made them, so whether
+// these tests can run is decided as each one starts.
+describe('Audio and video', () => {
+  const test = (name, fn) => nodeTest(name, async (t) => {
+    if (!hasMedia()) return t.skip('ffmpeg is not installed, or does not start');
+    return fn(t);
+  });
+  const ffmpeg = require('../engines/ffmpeg');
+  const streams = async (file) => (await ffmpeg.probe(file)).streams;
+  let audioFormats;
+  let videoFormats;
+  before(async () => {
+    audioFormats = (await require('../engines').TOOLS['convert-audio'].details()).formats;
+    videoFormats = (await require('../engines').TOOLS['convert-video'].details()).formats;
+  });
+
+  test('audio converts to every format this ffmpeg can write, keeping its length', async () => {
+    const codecs = { mp3: 'mp3', m4a: 'aac', ogg: 'vorbis', opus: 'opus', flac: 'flac', wav: 'pcm_s16le' };
+    assert.ok(audioFormats.includes('wav') && audioFormats.includes('flac'), `audio formats: ${audioFormats}`);
+    for (const format of audioFormats) {
+      const { outputs } = await run('convert-audio', ['tone.wav'], { format, bitrate: 128 });
+      const probe = await ffmpeg.probe(outputs[0]);
+      assert.equal(probe.streams[0].codec, codecs[format], format);
+      assert.ok(Math.abs(probe.duration - 2) < 0.2, `${format} lasts ${probe.duration}`);
+    }
+  });
+
+  test('the sound of a video comes out on its own', async () => {
+    const { outputs } = await run('convert-audio', ['clip.mp4'], { format: 'wav' });
+    assert.deepEqual((await streams(outputs[0])).map((s) => s.type), ['audio']);
+  });
+
+  test('video converts, shrinks to the size asked, and can lose its sound', async () => {
+    assert.ok(videoFormats.includes('gif'), `video formats: ${videoFormats}`);
+    for (const format of videoFormats.filter((f) => f !== 'gif')) {
+      const { outputs } = await run('convert-video', ['clip.mp4'], { format, quality: 'small' });
+      const types = (await streams(outputs[0])).map((s) => s.type).sort();
+      assert.deepEqual(types, ['audio', 'video'], format);
+    }
+    if (videoFormats.includes('mp4')) {
+      const { outputs } = await run('convert-video', ['clip.mp4'], { format: 'mp4', height: '360' });
+      // Never larger than the original: 240 stays 240.
+      assert.equal((await streams(outputs[0])).find((s) => s.type === 'video').height, 240);
+      const small = await run('convert-video', ['long-clip.mp4'], { format: 'mp4', height: '360', removeAudio: true, quality: 'small' });
+      const video = await streams(small.outputs[0]);
+      assert.deepEqual(video.map((s) => [s.type, s.width, s.height]), [['video', 480, 360]]);
+    }
+  });
+
+  test('a clip becomes a GIF', async () => {
+    const { outputs } = await run('convert-video', ['clip.mp4'], { format: 'gif' });
+    assert.equal(path.basename(outputs[0]), 'clip.gif');
+    assert.equal((await streams(outputs[0]))[0].codec, 'gif');
+  });
+
+  test('progress is reported, and a long conversion can be stopped', async () => {
+    const seen = [];
+    await runTool('convert-audio', [input('tone.wav')], { format: 'wav' }, outDir(), { onProgress: (p) => seen.push(p) });
+    assert.equal(seen.at(-1), 1);
+    assert.ok(seen.every((p, i) => i === 0 || p >= seen[i - 1]), `progress goes forward: ${seen}`);
+
+    const controller = new AbortController();
+    const dir = outDir();
+    const started = runTool('convert-video', [input('long-clip.mp4')], { format: 'webm', quality: 'high' }, dir, {
+      signal: controller.signal,
+      onProgress: (p) => { if (p > 0) controller.abort(); },
+    });
+    await rejectsWith(started, 'cancelled');
+    assert.deepEqual(fs.readdirSync(dir), [], 'nothing is left behind');
+  });
+
+  test('files that aren\'t audio or video are refused', async () => {
+    const dir = outDir();
+    const fake = path.join(dir, 'fake.mp3');
+    fs.copyFileSync(sample('notes.txt'), fake);
+    await rejectsWith(runTool('convert-audio', [{ path: fake, name: 'fake.mp3' }], { format: 'wav' }, dir), 'notMedia');
+    await rejectsWith(run('convert-audio', ['tone.wav'], { format: 'aiff' }), 'badOption');
+    await rejectsWith(run('convert-video', ['clip.mp4'], { format: 'mp4', height: '1234' }), 'badOption');
   });
 });
 

@@ -5,7 +5,7 @@ const { test, expect } = require('./fixtures');
 const { openApp, pickTool, addFiles, fileNames, resultNames, convert, download } = require('./helpers');
 const { info, engines } = require('../engines');
 const { readZip } = require('../lib/zip');
-const { PASSWORD, darkPixels, changedPixels, sample } = require('./sample-files');
+const { PASSWORD, darkPixels, changedPixels, sample, hasSample } = require('./sample-files');
 
 test.beforeEach(async ({ page }) => openApp(page));
 
@@ -232,6 +232,45 @@ test.describe('watermarks and compression', () => {
     await expect(page.locator('#status')).toHaveText(/^Done: from .+ to .+, \d+% smaller\.$/);
     const percent = Number(/(\d+)% smaller/.exec(await page.locator('#status').textContent())[1]);
     expect(percent).toBeGreaterThan(70);
+  });
+});
+
+test.describe('audio and video', () => {
+  test.skip(() => !hasSample('clip.mp4'), 'ffmpeg is not installed, or does not start');
+
+  test('take the sound out of a video as MP3', async ({ page }) => {
+    const ffmpeg = require('../engines/ffmpeg');
+    await pickTool(page, 'convert-audio');
+    await addFiles(page, ['clip.mp4']);
+    await page.locator('#audioFormatSelect').selectOption('mp3');
+    await convert(page);
+    const file = await download(page, 'clip.mp3');
+    expect((await ffmpeg.probe(file)).streams.map((s) => s.codec)).toEqual(['mp3']);
+  });
+
+  test('turn a clip into a GIF; sound options hide for GIF', async ({ page }) => {
+    const ffmpeg = require('../engines/ffmpeg');
+    await pickTool(page, 'convert-video');
+    await expect(page.locator('#removeAudioField')).toBeVisible();
+    await page.locator('#videoFormatSelect').selectOption('gif');
+    await expect(page.locator('#removeAudioField')).toBeHidden();
+    await addFiles(page, ['clip.mp4']);
+    await convert(page);
+    const file = await download(page, 'clip.gif');
+    expect((await ffmpeg.probe(file)).streams[0].codec).toBe('gif');
+  });
+
+  test('a long conversion shows its progress and can be cancelled', async ({ page }) => {
+    await pickTool(page, 'convert-video');
+    await addFiles(page, ['long-clip.mp4']);
+    await page.locator('#videoFormatSelect').selectOption('webm');
+    await page.locator('#videoQualitySelect').selectOption('high');
+    await page.locator('#runButton').click();
+    await expect(page.locator('#progressRow')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('#status')).toHaveText('Stopped. Nothing was saved.');
+    await expect(page.locator('#progressRow')).toBeHidden();
+    await expect(page.locator('#results')).toBeHidden();
   });
 });
 

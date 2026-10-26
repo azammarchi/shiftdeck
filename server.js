@@ -78,6 +78,7 @@ function handleEvents(req, res) {
 const uploads = new Map(); // id → { path, name, size }
 const outputs = new Map(); // id → { path, name, size }
 const bundles = new Map(); // id → { name, outputs: [output ids] }
+const runs = new Map(); // id the app chose → { progress (0-1), controller }
 const ID_PATTERN = /^[0-9a-f-]{36}$/;
 
 function sendJson(res, status, value) {
@@ -179,13 +180,26 @@ async function runToolRequest(req, res, toolName) {
   if (inputs.some((input) => !input)) return sendError(res, 404, 'missingFile', 'A file is no longer available, add it again');
   const outDir = path.join(WORK_DIR, 'outputs', crypto.randomUUID());
   await fsp.mkdir(outDir, { recursive: true });
+  // The app names each run, to ask how far it got and to stop it. Closing
+  // the tab (the request goes away) stops it too.
+  const runId = ID_PATTERN.test(req.headers['x-run-id'] || '') ? req.headers['x-run-id'] : crypto.randomUUID();
+  const run = { progress: 0, controller: new AbortController() };
+  runs.set(runId, run);
+  res.on('close', () => {
+    if (!res.writableFinished) run.controller.abort();
+  });
   let result;
   try {
-    result = await runTool(toolName, inputs, options, outDir);
+    result = await runTool(toolName, inputs, options, outDir, {
+      signal: run.controller.signal,
+      onProgress: (fraction) => { run.progress = fraction; },
+    });
   } catch (err) {
     await fsp.rm(outDir, { recursive: true, force: true });
     if (!err.code || err.code === 'failed' || err.code === 'writeFailed') console.error(`${toolName}:`, err.message);
-    return sendError(res, err.code === 'badTool' ? 404 : 422, err.code || 'failed', err.message);
+    return sendError(res, err.code === 'badTool' ? 404 : err.code === 'cancelled' ? 409 : 422, err.code || 'failed', err.message);
+  } finally {
+    runs.delete(runId);
   }
   const listed = [];
   for (const file of result.outputs) {
@@ -245,6 +259,8 @@ async function sendBundle(res, id) {
 // POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], bundle: { id, name } | null, warnings }
 // GET    /api/outputs/:id      → the result, as a download
 // GET    /api/bundles/:id      → all the results of one run, as a ZIP
+// GET    /api/runs/:id         → { progress } of a running tool (id from the X-Run-Id header)
+// DELETE /api/runs/:id         → stops it
 async function handleApi(req, res, url) {
   const [section, id, extra, more] = url.pathname.split('/').filter(Boolean).slice(1); // drop "api"
   if (section === 'uploads' && ID_PATTERN.test(id || '') && extra === 'pages' && !more && req.method === 'GET') return sendPages(res, id);
@@ -267,6 +283,12 @@ async function handleApi(req, res, url) {
   }
   if (section === 'outputs' && ID_PATTERN.test(id || '') && req.method === 'GET') return sendOutput(res, id);
   if (section === 'bundles' && ID_PATTERN.test(id || '') && req.method === 'GET') return sendBundle(res, id);
+  if (section === 'runs' && ID_PATTERN.test(id || '') && (req.method === 'GET' || req.method === 'DELETE')) {
+    const run = runs.get(id);
+    if (!run) return sendError(res, 404, 'notFound', 'Not running');
+    if (req.method === 'DELETE') run.controller.abort();
+    return sendJson(res, 200, { progress: run.progress });
+  }
   sendError(res, 404, 'notFound', 'Not found');
 }
 

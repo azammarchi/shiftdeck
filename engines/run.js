@@ -35,13 +35,14 @@ function extraFolders() {
   const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')].filter(Boolean);
   const folders = [];
   for (const root of roots) {
-    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf)/i)) folders.push(dir, path.join(dir, 'bin'));
+    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf|ffmpeg)/i)) folders.push(dir, path.join(dir, 'bin'));
   }
   const winget = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet');
   if (winget) {
     folders.push(path.join(winget, 'Links'));
-    for (const pkg of subfolders(path.join(winget, 'Packages'), /^(ArtifexSoftware|QPDF|ImageMagick)\./i)) {
-      folders.push(pkg, ...subfolders(pkg, /./));
+    for (const pkg of subfolders(path.join(winget, 'Packages'), /^(ArtifexSoftware|QPDF|ImageMagick|Gyan)\./i)) {
+      for (const dir of subfolders(pkg, /./)) folders.push(dir, path.join(dir, 'bin'));
+      folders.push(pkg);
     }
   }
   return folders;

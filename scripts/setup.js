@@ -8,6 +8,7 @@
 const { spawnSync } = require('child_process');
 const { findProgram } = require('../engines/run');
 const { engines } = require('../engines');
+const ffmpeg = require('../engines/ffmpeg');
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has('--dry-run');
@@ -18,31 +19,34 @@ const ENGINES = {
   qpdf: 'merging, splitting, rotating and AES-256 passwords',
   mutool: 'PDF to images (MuPDF)',
   imagemagick: 'converting images: PNG, JPEG, HEIC, TIFF, WebP...',
+  ffmpeg: 'converting audio and video: MP3, M4A, WAV, MP4, WebM, GIF...',
 };
 
-// On macOS, Apple's PDFKit already does the PDF work, so mutool isn't needed;
-// qpdf adds strong passwords and ImageMagick converts images.
-const wanted = isMac && !args.has('--all') ? ['qpdf', 'imagemagick'] : Object.keys(ENGINES);
+// On macOS, Apple's PDFKit already does the PDF work, so mutool isn't needed.
+const wanted = isMac && !args.has('--all') ? ['qpdf', 'imagemagick', 'ffmpeg'] : Object.keys(ENGINES);
 
 // Package names per package manager, and how to install with it.
 const MANAGERS = [
-  { name: 'brew', packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick' }, install: (p) => [['brew', 'install', ...p]] },
-  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick' }, install: (p) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...p]] },
-  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick' }, install: (p) => [['dnf', 'install', '-y', ...p]] },
-  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick' }, install: (p) => [['pacman', '-S', '--needed', '--noconfirm', ...p]] },
-  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick' }, install: (p) => [['zypper', 'install', '-y', ...p]] },
+  // An engine that is installed but doesn't start (a library it needs was
+  // updated) is reinstalled: a plain `brew install` would do nothing.
+  { name: 'brew', packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [...(p.length ? [['brew', 'install', ...p]] : []), ...(broken.length ? [['brew', 'reinstall', ...broken]] : [])] },
+  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...(broken.length ? ['--reinstall'] : []), ...p, ...broken]] },
+  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg-free' }, install: (p, broken) => [['dnf', 'install', '-y', ...p], ...(broken.length ? [['dnf', 'reinstall', '-y', ...broken]] : [])] },
+  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['pacman', '-S', '--noconfirm', ...p, ...broken]] },
+  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['zypper', 'install', '-y', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
   {
     name: 'winget',
-    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick' },
-    install: (p) => p.map((id) => ['winget', 'install', '--id', id, '--exact', '--silent', '--accept-source-agreements', '--accept-package-agreements', '--disable-interactivity']),
+    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick', ffmpeg: 'Gyan.FFmpeg' },
+    install: (p, broken) => [...p, ...broken].map((id) => ['winget', 'install', '--id', id, '--exact', '--silent', '--force', '--accept-source-agreements', '--accept-package-agreements', '--disable-interactivity']),
   },
-  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick' }, install: (p) => [['choco', 'install', '-y', '--no-progress', ...p]] },
+  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg' }, install: (p, broken) => [['choco', 'install', '-y', '--no-progress', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
 ];
 
 const MANUAL = {
   qpdf: 'https://github.com/qpdf/qpdf/releases',
   mutool: 'https://mupdf.com/releases',
   imagemagick: 'https://imagemagick.org/script/download.php',
+  ffmpeg: 'https://ffmpeg.org/download.html',
 };
 
 function pickManager() {
@@ -63,18 +67,22 @@ function run(command) {
   return result.status === 0;
 }
 
-function report() {
+// ffmpeg is only counted once it has been seen to start.
+async function report() {
+  ffmpeg.forget();
+  await ffmpeg.capabilities();
   const found = engines();
   console.log('');
   for (const name of Object.keys(ENGINES)) {
     const mark = found[name] ? '✓' : wanted.includes(name) ? '✗' : '–';
-    console.log(`  ${mark} ${name.padEnd(12)} ${ENGINES[name]}`);
+    const note = !found[name] && findProgram(name) ? ' (installed, but it doesn\'t start)' : '';
+    console.log(`  ${mark} ${name.padEnd(12)} ${ENGINES[name]}${note}`);
   }
   if (isMac) console.log(`  ${found.pdfkit ? '✓' : '✗'} ${'PDFKit'.padEnd(12)} built into macOS: every PDF tool`);
   return wanted.filter((name) => !found[name]);
 }
 
-function main() {
+async function main() {
   const [major] = process.versions.node.split('.').map(Number);
   if (major < 20) {
     console.error(`Shiftdeck needs Node.js 20 or newer; this is ${process.version}. Get it from https://nodejs.org`);
@@ -82,7 +90,7 @@ function main() {
   }
 
   console.log('Shiftdeck setup: checking the programs its tools use...');
-  const missing = report();
+  const missing = await report();
   if (!missing.length) {
     console.log('\nEverything is installed. Start Shiftdeck with: npm start');
     return;
@@ -95,18 +103,21 @@ function main() {
     process.exit(1);
   }
 
+  // Installed but not starting: reinstalled rather than installed.
+  const broken = missing.filter((name) => findProgram(name));
+  const absent = missing.filter((name) => !broken.includes(name));
   console.log(`\nInstalling ${missing.join(', ')} with ${manager.name}...`);
   const needsSudo = manager.sudo && typeof process.getuid === 'function' && process.getuid() !== 0;
   const sudo = needsSudo ? findProgram('sudo') : null;
   if (needsSudo && !sudo) console.log('(sudo not found: trying without it)');
   let ok = true;
-  for (const command of manager.install(missing.map((name) => manager.packages[name]))) {
+  for (const command of manager.install(absent.map((name) => manager.packages[name]), broken.map((name) => manager.packages[name]))) {
     const full = [command[0] === manager.name ? manager.program : command[0], ...command.slice(1)];
     if (!run(sudo ? [sudo, ...full] : full)) ok = false;
   }
   if (dryRun) return;
 
-  const stillMissing = report();
+  const stillMissing = await report();
   if (stillMissing.length) {
     console.error(`\nStill missing: ${stillMissing.join(', ')}.${ok ? '' : ` ${manager.name} reported an error above.`}`);
     console.error('Install them by hand, then run npm run setup again:');

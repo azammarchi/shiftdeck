@@ -173,6 +173,22 @@ function convertImage(input, output, format) {
   }
 }
 
+// Audio and video samples, made by ffmpeg itself when it works here: a
+// two-second 440 Hz tone, a two-second test clip with sound, and a longer
+// clip to cancel. Without ffmpeg there are none, and their tests are skipped.
+async function makeMediaSamples(file) {
+  const ffmpeg = require('../engines/ffmpeg');
+  const { works, encoders } = await ffmpeg.capabilities();
+  const program = findProgram('ffmpeg');
+  if (!works) return;
+  const video = encoders.has('libx264') ? ['-c:v', 'libx264', '-pix_fmt', 'yuv420p'] : ['-c:v', 'mpeg4'];
+  const audio = encoders.has('aac') ? ['-c:a', 'aac'] : [];
+  const make = (args) => execFileSync(program, ['-hide_banner', '-loglevel', 'error', '-y', ...args], { stdio: 'ignore' });
+  make(['-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', file('tone.wav')]);
+  make(['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=15:duration=2', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', ...video, ...audio, '-shortest', file('clip.mp4')]);
+  make(['-f', 'lavfi', '-i', 'testsrc=size=640x480:rate=30:duration=60', ...video, file('long-clip.mp4')]);
+}
+
 async function makeSampleFiles() {
   fs.rmSync(DIR, { recursive: true, force: true });
   fs.mkdirSync(DIR, { recursive: true });
@@ -198,6 +214,7 @@ async function makeSampleFiles() {
   await make('images-to-pdf', ['p1.png', 'landscape.png', 'p3.png'], { pageSize: 'a4' }, 'mixed.pdf');
   await make('protect', ['two-pages.pdf'], { password: PASSWORD }, 'protected.pdf');
   await writePhotoPdf(file('photo.pdf'));
+  await makeMediaSamples(file);
   return DIR;
 }
 

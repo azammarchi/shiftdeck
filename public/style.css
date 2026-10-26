@@ -206,6 +206,12 @@ input[type="text"], input[type="password"], input[type="number"], select {
 .notice.warning { border-color: var(--warning); }
 .notice.info { border-color: var(--accent); }
 .notice.error { border-color: var(--error); margin: 16px 24px 0; }
+.demo-notice { margin: 16px 24px 0; }
+.notice a { color: var(--accent); }
+
+.progress-row { display: flex; align-items: center; gap: 12px; }
+.progress-row progress { flex: 1; height: 8px; accent-color: var(--accent); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .status:empty { display: none; }
 .status { margin: 0; padding: 10px 14px; border-radius: 8px; background: var(--panel-hi); }

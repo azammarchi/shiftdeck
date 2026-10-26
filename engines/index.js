@@ -12,6 +12,7 @@ const pdfkitEngine = require('./pdfkit');
 const qpdf = require('./qpdf');
 const mutool = require('./mutool');
 const imagemagick = require('./imagemagick');
+const ffmpeg = require('./ffmpeg');
 const { writePdf, jpegFrame, textWidth } = require('./pdfwrite');
 const { readPng } = require('../lib/png');
 const { ToolError } = require('./run');
@@ -21,6 +22,29 @@ const { pdfkit } = pdfkitEngine;
 const PDF_TYPES = ['.pdf'];
 const IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.heic', '.heif', '.tif', '.tiff', '.gif', '.bmp', '.webp', '.jp2'];
 const DPI_RANGE = [36, 600];
+const AUDIO_TYPES = ['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.oga', '.opus', '.aif', '.aiff', '.wma', '.caf'];
+const VIDEO_TYPES = ['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.avi', '.wmv', '.flv', '.mpg', '.mpeg', '.3gp'];
+
+// What "Convert audio" can write: the extension, and the encoder and
+// arguments for each format, with the bitrate (kbit/s) for the lossy ones.
+const AUDIO_OUTPUTS = {
+  mp3: { ext: 'mp3', encoder: 'libmp3lame', args: (kbps) => ['-c:a', 'libmp3lame', '-b:a', `${kbps}k`] },
+  m4a: { ext: 'm4a', encoder: 'aac', args: (kbps) => ['-c:a', 'aac', '-b:a', `${kbps}k`] },
+  ogg: { ext: 'ogg', encoder: 'libvorbis', args: (kbps) => ['-c:a', 'libvorbis', '-b:a', `${kbps}k`] },
+  opus: { ext: 'opus', encoder: 'libopus', args: (kbps) => ['-c:a', 'libopus', '-b:a', `${kbps}k`] },
+  flac: { ext: 'flac', encoder: 'flac', lossless: true, args: () => ['-c:a', 'flac'] },
+  wav: { ext: 'wav', encoder: 'pcm_s16le', lossless: true, args: () => ['-c:a', 'pcm_s16le'] },
+};
+
+// What "Convert video" can write. Quality is a constant-quality level
+// (lower is better) per format: high, medium, small.
+const VIDEO_OUTPUTS = {
+  mp4: { ext: 'mp4', encoders: ['libx264', 'aac'], quality: { high: 18, medium: 23, small: 28 }, video: (q) => ['-c:v', 'libx264', '-preset', 'medium', '-crf', String(q), '-pix_fmt', 'yuv420p'], audio: ['-c:a', 'aac', '-b:a', '160k'], extra: ['-movflags', '+faststart'] },
+  mov: { ext: 'mov', encoders: ['libx264', 'aac'], quality: { high: 18, medium: 23, small: 28 }, video: (q) => ['-c:v', 'libx264', '-preset', 'medium', '-crf', String(q), '-pix_fmt', 'yuv420p'], audio: ['-c:a', 'aac', '-b:a', '160k'], extra: [] },
+  webm: { ext: 'webm', encoders: ['libvpx-vp9', 'libopus'], quality: { high: 28, medium: 34, small: 40 }, video: (q) => ['-c:v', 'libvpx-vp9', '-crf', String(q), '-b:v', '0', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '4'], audio: ['-c:a', 'libopus', '-b:a', '128k'], extra: [] },
+  gif: { ext: 'gif', encoders: ['gif'], quality: { high: 15, medium: 12, small: 8 }, extra: [] },
+};
+
 // Image formats "Convert images" can write, and the extension for each.
 const IMAGE_OUTPUTS = { jpeg: 'jpg', png: 'png', webp: 'webp', tiff: 'tiff', heic: 'heic' };
 const LOSSY = ['jpeg', 'webp', 'heic'];
@@ -28,7 +52,7 @@ const LOSSY = ['jpeg', 'webp', 'heic'];
 const PAGE_SIZES = { a4: [595, 842], letter: [612, 792] };
 
 function engines() {
-  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available() };
+  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available(), ffmpeg: ffmpeg.available() };
 }
 
 const native = () => pdfkitEngine.available();
@@ -379,6 +403,63 @@ const TOOLS = {
     },
   },
 
+  'convert-audio': {
+    accepts: [...AUDIO_TYPES, ...VIDEO_TYPES],
+    mode: 'each',
+    needs: () => missing('ffmpeg'),
+    async details() {
+      const { works, encoders } = await ffmpeg.capabilities();
+      return { formats: works ? Object.keys(AUDIO_OUTPUTS).filter((f) => encoders.has(AUDIO_OUTPUTS[f].encoder)) : [] };
+    },
+    async run(file, options, outDir, { onProgress, signal } = {}) {
+      const format = option(options, 'format', Object.keys(AUDIO_OUTPUTS), 'mp3');
+      const output = AUDIO_OUTPUTS[format];
+      const { encoders } = await ffmpeg.capabilities();
+      if (!encoders.has(output.encoder)) throw new ToolError('formatUnavailable', `this computer's ffmpeg can't write ${format.toUpperCase()}`);
+      const kbps = output.lossless ? null : option({ bitrate: String(options.bitrate ?? 192) }, 'bitrate', ['96', '128', '160', '192', '256', '320']);
+      const target = path.join(outDir, `${stem(file.name)}.${output.ext}`);
+      const total = await ffmpeg.duration(file.path);
+      // -vn: only the sound, also when the input is a video.
+      await ffmpeg.convert(['-i', file.path, '-vn', '-map', '0:a:0', ...output.args(kbps), target], target, { total, onProgress, signal });
+      return { outputs: [target] };
+    },
+  },
+
+  'convert-video': {
+    accepts: VIDEO_TYPES,
+    mode: 'each',
+    needs: () => missing('ffmpeg'),
+    async details() {
+      const { works, encoders } = await ffmpeg.capabilities();
+      return { formats: works ? Object.keys(VIDEO_OUTPUTS).filter((f) => VIDEO_OUTPUTS[f].encoders.every((e) => encoders.has(e))) : [] };
+    },
+    async run(file, options, outDir, { onProgress, signal } = {}) {
+      const format = option(options, 'format', Object.keys(VIDEO_OUTPUTS), 'mp4');
+      const output = VIDEO_OUTPUTS[format];
+      const { encoders } = await ffmpeg.capabilities();
+      if (!output.encoders.every((e) => encoders.has(e))) throw new ToolError('formatUnavailable', `this computer's ffmpeg can't write ${format.toUpperCase()}`);
+      const quality = output.quality[option(options, 'quality', ['high', 'medium', 'small'], 'medium')];
+      const height = option({ height: String(options.height ?? 'keep') }, 'height', ['keep', '1080', '720', '480', '360']);
+      const removeAudio = options.removeAudio === true;
+      const target = path.join(outDir, `${stem(file.name)}.${output.ext}`);
+      const total = await ffmpeg.duration(file.path);
+      // Never larger than the original; sizes stay even, as most encoders need.
+      const scale = height === 'keep' ? null : `scale=-2:'min(${height},ih)'`;
+      let args;
+      if (format === 'gif') {
+        // GIFs get their own palette, at "quality" frames a second and at
+        // most 480 pixels high unless a size was chosen.
+        const size = scale || `scale=-2:'min(480,ih)'`;
+        args = ['-i', file.path, '-filter_complex', `[0:v]fps=${quality},${size}:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse`, '-loop', '0', target];
+      } else {
+        args = ['-i', file.path, '-map', '0:v:0', ...(removeAudio ? ['-an'] : ['-map', '0:a:0?', ...output.audio]),
+          ...(scale ? ['-vf', scale] : []), ...output.video(quality), ...output.extra, target];
+      }
+      await ffmpeg.convert(args, target, { total, onProgress, signal });
+      return { outputs: [target] };
+    },
+  },
+
   rotate: {
     accepts: PDF_TYPES,
     mode: 'each',
@@ -430,8 +511,10 @@ const TOOLS = {
 // Runs a tool on files ({ path, name }), writing results into outDir.
 // Resolves with { outputs: [path], warnings: [code] }. "each" tools give
 // every input its own subfolder, so two inputs with the same name can't
-// overwrite each other's results.
-async function runTool(name, files, options, outDir) {
+// overwrite each other's results. `onProgress(fraction)` hears how far the
+// whole run has got, from tools that can tell; aborting `signal` stops it
+// (tools that can't stop midway stop before the next file).
+async function runTool(name, files, options, outDir, { onProgress, signal } = {}) {
   const tool = Object.hasOwn(TOOLS, name) ? TOOLS[name] : null;
   if (!tool) throw new ToolError('badTool', `unknown tool ${name}`);
   const missing = tool.needs();
@@ -451,15 +534,23 @@ async function runTool(name, files, options, outDir) {
     if (result.encryption === 'RC4-128') warnings.add('weakEncryption');
     for (const warning of result.warnings || []) warnings.add(warning);
   };
+  const stopIfCancelled = () => {
+    if (signal?.aborted) throw new ToolError('cancelled', 'cancelled');
+  };
+  stopIfCancelled();
   if (tool.mode === 'combine') {
-    collect(await tool.run(files, options, outDir));
+    collect(await tool.run(files, options, outDir, { signal, onProgress }));
   } else {
     for (const [i, file] of files.entries()) {
+      stopIfCancelled();
       const dir = files.length > 1 ? path.join(outDir, String(i + 1)) : outDir;
       await fsp.mkdir(dir, { recursive: true });
-      collect(await tool.run(file, options, dir));
+      const progress = onProgress && ((fraction) => onProgress((i + fraction) / files.length));
+      collect(await tool.run(file, options, dir, { signal, onProgress: progress }));
+      onProgress?.((i + 1) / files.length);
     }
   }
+  stopIfCancelled();
   return { outputs, warnings: [...warnings] };
 }
 

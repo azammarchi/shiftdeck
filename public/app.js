@@ -59,7 +59,7 @@ function selectTool(name) {
   $('toolHint').textContent = t(`tool_${name}_hint`);
   const tool = currentTool();
   $('fileInput').accept = tool.accepts.join(',');
-  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? 'acceptsPdf' : 'acceptsImages');
+  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? 'acceptsPdf' : tool.accepts.includes('.mp3') ? 'acceptsAudio' : tool.accepts.includes('.mp4') ? 'acceptsVideo' : 'acceptsImages');
   let visibleFields = 0;
   for (const el of $('optionsForm').querySelectorAll('[data-for]')) {
     const show = el.dataset.for.split(' ').includes(name);
@@ -67,13 +67,16 @@ function selectTool(name) {
     if (show && el.classList.contains('field')) visibleFields++;
   }
   const missing = tool.needs || [];
-  $('missingNotice').textContent = t('missingEngines', { engines: new Intl.ListFormat(currentLanguage).format(missing) });
-  $('missingNotice').hidden = missing.length === 0;
+  // In the online demo, tools that need the app on a computer say so.
+  $('missingNotice').textContent = tool.demoOnly ? t('demoOnlyNotice') : t('missingEngines', { engines: new Intl.ListFormat(currentLanguage).format(missing) });
+  $('missingNotice').hidden = !tool.demoOnly && missing.length === 0;
+  // The browser's re-encoding always leaves metadata out, so there's no choice to offer.
+  $('stripMetadataField').hidden = $('stripMetadataField').hidden || !!state.demo;
   // Only PDFKit, on macOS, can protect a PDF without qpdf, and only weakly.
   $('weakNotice').hidden = name !== 'protect' || state.engines.qpdf !== false || !state.engines.pdfkit;
   $('strongNotice').hidden = name !== 'protect' || !state.engines.qpdf;
   $('optionsHeading').hidden = visibleFields === 0;
-  if (name === 'convert-images') updateImageOptions();
+  if (FORMAT_SELECTS[name]) updateFormatOptions(name);
   if (name === 'organize') loadPages();
   if (name === 'page-numbers') updateNumberFormats();
   if (name === 'sign') sizeSignaturePad();
@@ -84,13 +87,20 @@ function selectTool(name) {
   renderFiles();
 }
 
-// Convert images: only the formats this computer can write are offered, and
-// quality only matters for the lossy ones.
+// The converters offer only the formats this computer can write (they
+// depend on how ImageMagick and ffmpeg were built), and say which are
+// missing. Some options only matter for some formats.
+const FORMAT_SELECTS = {
+  'convert-images': { select: 'imageFormatSelect', hint: 'formatsHint' },
+  'convert-audio': { select: 'audioFormatSelect', hint: 'audioFormatsHint' },
+  'convert-video': { select: 'videoFormatSelect', hint: 'videoFormatsHint' },
+};
 const LOSSY_FORMATS = ['jpeg', 'webp', 'heic'];
 
-function updateImageOptions() {
-  const writable = state.tools['convert-images']?.formats || [];
-  const select = $('imageFormatSelect');
+function updateFormatOptions(tool) {
+  const { select: selectId, hint } = FORMAT_SELECTS[tool];
+  const writable = state.tools[tool]?.formats || [];
+  const select = $(selectId);
   const unavailable = [];
   for (const option of select.options) {
     option.disabled = !writable.includes(option.value);
@@ -100,9 +110,12 @@ function updateImageOptions() {
     const first = [...select.options].find((option) => !option.disabled);
     if (first) select.value = first.value;
   }
-  $('formatsHint').textContent = t('formatsUnavailable', { formats: new Intl.ListFormat(currentLanguage).format(unavailable) });
-  $('formatsHint').hidden = unavailable.length === 0 || writable.length === 0;
-  $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
+  const reason = state.demo ? 'formatsUnavailableBrowser' : tool === 'convert-images' ? 'formatsUnavailable' : 'formatsUnavailableFfmpeg';
+  $(hint).textContent = t(reason, { formats: new Intl.ListFormat(currentLanguage).format(unavailable) });
+  $(hint).hidden = unavailable.length === 0 || writable.length === 0;
+  if (tool === 'convert-images') $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
+  if (tool === 'convert-audio') $('bitrateField').hidden = ['flac', 'wav'].includes(select.value);
+  if (tool === 'convert-video') $('removeAudioField').hidden = select.value === 'gif';
 }
 
 // ---------------------------------------------------------------------------
@@ -492,7 +505,7 @@ function renderFiles() {
 
 function updateRunButton() {
   const run = $('runButton');
-  run.disabled = state.busy || !state.loaded || (currentTool().needs || []).length > 0;
+  run.disabled = state.busy || !state.loaded || !!currentTool().demoOnly || (currentTool().needs || []).length > 0;
   run.setAttribute('aria-busy', String(state.busy));
   $('runLabel').textContent = t(state.busy ? 'running' : 'run');
 }
@@ -545,13 +558,17 @@ async function runTool() {
   updateRunButton();
   setStatus(t('running'));
   $('results').hidden = true;
+  // Each run has a name, to ask the server how far it got and to stop it.
+  const runId = crypto.randomUUID();
+  state.runId = runId;
+  const watch = watchProgress(runId);
   try {
     await Promise.all(usable.map((f) => f.upload));
     const failed = usable.find((f) => f.error);
     if (failed) throw Object.assign(new Error(failed.error), { code: 'generic' });
     const response = await fetch(`/api/tools/${state.tool}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Run-Id': runId },
       body: JSON.stringify({ files: usable.map((f) => f.id), options: readOptions() }),
     });
     const body = await response.json().catch(() => ({}));
@@ -563,12 +580,44 @@ async function runTool() {
       setStatus(t('compressed', { before: formatSize(before), after: formatSize(after), percent: Math.round((1 - after / before) * 100) }), 'success');
     }
   } catch (err) {
-    const message = err instanceof TypeError ? t('serverDown') : errorText(err.code, err.message, { name: usable[0]?.name });
-    setStatus(message, 'error');
+    if (err.code === 'cancelled') setStatus(t('cancelledStatus'));
+    else setStatus(err instanceof TypeError ? t('serverDown') : errorText(err.code, err.message, { name: usable[0]?.name }), 'error');
   } finally {
+    watch.stop();
+    state.runId = null;
     state.busy = false;
     updateRunButton();
   }
+}
+
+// While a run is going: a progress bar (moving on its own until the tool
+// reports how far it is) and a Cancel button, shown only for runs that take
+// more than a moment, so quick ones don't flicker.
+function watchProgress(runId) {
+  const bar = $('progressBar');
+  bar.removeAttribute('value');
+  const show = setTimeout(() => { $('progressRow').hidden = false; }, 400);
+  const poll = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/runs/${runId}`);
+      if (!response.ok) return;
+      const { progress } = await response.json();
+      if (progress > 0) bar.value = progress;
+    } catch {}
+  }, 500);
+  return {
+    stop() {
+      clearTimeout(show);
+      clearInterval(poll);
+      $('progressRow').hidden = true;
+    },
+  };
+}
+
+async function cancelRun() {
+  if (!state.runId) return;
+  setStatus(t('cancelling'));
+  await fetch(`/api/runs/${state.runId}`, { method: 'DELETE' }).catch(() => {});
 }
 
 function showResults(outputs, bundle, warnings) {
@@ -587,7 +636,8 @@ function showResults(outputs, bundle, warnings) {
     info.append(name, meta);
     const link = document.createElement('a');
     link.className = 'button';
-    link.href = `/api/outputs/${output.id}`;
+    // The online demo makes its results in the page, as blob: URLs.
+    link.href = output.url || `/api/outputs/${output.id}`;
     link.download = output.name;
     link.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>';
     const label = document.createElement('span');
@@ -601,7 +651,7 @@ function showResults(outputs, bundle, warnings) {
   const all = $('downloadAllLink');
   all.hidden = !bundle;
   if (bundle) {
-    all.href = `/api/bundles/${bundle.id}`;
+    all.href = bundle.url || `/api/bundles/${bundle.id}`;
     all.download = bundle.name;
   }
   $('results').hidden = false;
@@ -657,7 +707,9 @@ async function loadStatus() {
     const body = await response.json();
     state.tools = body.tools;
     state.engines = body.engines;
+    state.demo = !!body.demo;
     state.loaded = true;
+    $('demoNotice').hidden = !state.demo;
   } catch {
     $('engineNotice').textContent = t('serverDown');
     $('engineNotice').hidden = false;
@@ -689,7 +741,8 @@ async function init() {
     for (const file of [...state.files]) removeFile(file.key);
     $('chooseButton').focus();
   });
-  $('imageFormatSelect').addEventListener('change', updateImageOptions);
+  for (const [tool, { select }] of Object.entries(FORMAT_SELECTS)) $(select).addEventListener('change', () => updateFormatOptions(tool));
+  $('cancelButton').addEventListener('click', cancelRun);
   $('watermarkTextInput').addEventListener('input', (e) => { e.target.dataset.edited = 'yes'; });
   $('pageGrid').addEventListener('click', onPageAction);
   $('resetPagesButton').addEventListener('click', () => {
@@ -715,7 +768,8 @@ async function init() {
   selectTool(state.tool);
 
   // Keeps the local server running while this tab is open (see server.js).
-  new EventSource('/events');
+  // The online demo has no server.
+  if (!window.SHIFTDECK_DEMO) new EventSource('/events');
 }
 
 init();

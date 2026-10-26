@@ -27,6 +27,8 @@
       <symbol id="i-sign" viewBox="0 0 24 24"><path d="M3 17c3-6 5-9 6-8s-2 7 0 7 4-6 6-6-1 5 1 5 3-2 5-3M3 21h18"/></symbol>
       <symbol id="i-stamp" viewBox="0 0 24 24"><path d="M5 19 19 5M8 5h11v11"/><rect x="3" y="3" width="18" height="18" rx="2" opacity=".5"/></symbol>
       <symbol id="i-compress" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></symbol>
+      <symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+      <symbol id="i-video" viewBox="0 0 24 24"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3v10l-6-3"/></symbol>
       <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></symbol>
       <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
       <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
@@ -57,6 +59,8 @@
       <legend data-i18n="toolsHeading"></legend>
       <label class="tool"><input type="radio" name="tool" value="merge" checked><svg class="icon" aria-hidden="true"><use href="#i-merge"/></svg><span data-i18n="tool_merge"></span></label>
       <label class="tool"><input type="radio" name="tool" value="split"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span data-i18n="tool_split"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="convert-audio"><svg class="icon" aria-hidden="true"><use href="#i-audio"/></svg><span data-i18n="tool_convert-audio"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="convert-video"><svg class="icon" aria-hidden="true"><use href="#i-video"/></svg><span data-i18n="tool_convert-video"></span></label>
       <label class="tool"><input type="radio" name="tool" value="organize"><svg class="icon" aria-hidden="true"><use href="#i-organize"/></svg><span data-i18n="tool_organize"></span></label>
       <label class="tool"><input type="radio" name="tool" value="pdf-to-images"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg><span data-i18n="tool_pdf-to-images"></span></label>
       <label class="tool"><input type="radio" name="tool" value="images-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><span data-i18n="tool_images-to-pdf"></span></label>
@@ -152,7 +156,7 @@
           <input id="maxSizeInput" name="maxSize" type="number" min="16" max="30000" step="1" aria-describedby="maxSizeHint">
           <p id="maxSizeHint" class="muted small" data-i18n="maxSizeHint"></p>
         </div>
-        <div class="field" data-for="convert-images">
+        <div class="field" data-for="convert-images" id="stripMetadataField">
           <label class="checkbox"><input type="checkbox" id="stripMetadataInput" name="stripMetadata" checked aria-describedby="stripMetadataHint"><span data-i18n="stripMetadata"></span></label>
           <p id="stripMetadataHint" class="muted small" data-i18n="stripMetadataHint"></p>
         </div>
@@ -243,6 +247,63 @@
           <p id="compressLevelHint" class="muted small" data-i18n="compressHint"></p>
         </div>
 
+        <div class="field" data-for="convert-audio">
+          <label for="audioFormatSelect" data-i18n="convertTo"></label>
+          <select id="audioFormatSelect" name="format">
+            <option value="mp3">MP3</option>
+            <option value="m4a">M4A (AAC)</option>
+            <option value="ogg">OGG (Vorbis)</option>
+            <option value="opus">Opus</option>
+            <option value="flac">FLAC</option>
+            <option value="wav">WAV</option>
+          </select>
+          <p id="audioFormatsHint" class="muted small" hidden></p>
+        </div>
+        <div class="field" data-for="convert-audio" id="bitrateField">
+          <label for="bitrateSelect" data-i18n="bitrate"></label>
+          <select id="bitrateSelect" name="bitrate" aria-describedby="bitrateHint">
+            <option value="96">96 kbit/s</option>
+            <option value="128">128 kbit/s</option>
+            <option value="160">160 kbit/s</option>
+            <option value="192">192 kbit/s</option>
+            <option value="256">256 kbit/s</option>
+            <option value="320">320 kbit/s</option>
+          </select>
+          <p id="bitrateHint" class="muted small" data-i18n="bitrateHint"></p>
+        </div>
+
+        <div class="field" data-for="convert-video">
+          <label for="videoFormatSelect" data-i18n="convertTo"></label>
+          <select id="videoFormatSelect" name="format">
+            <option value="mp4">MP4 (H.264)</option>
+            <option value="webm">WebM (VP9)</option>
+            <option value="mov">MOV (H.264)</option>
+            <option value="gif">GIF</option>
+          </select>
+          <p id="videoFormatsHint" class="muted small" hidden></p>
+        </div>
+        <div class="field" data-for="convert-video">
+          <label for="videoQualitySelect" data-i18n="videoQuality"></label>
+          <select id="videoQualitySelect" name="quality">
+            <option value="high" data-i18n="qualityHigh"></option>
+            <option value="medium" data-i18n="qualityMedium"></option>
+            <option value="small" data-i18n="qualitySmall"></option>
+          </select>
+        </div>
+        <div class="field" data-for="convert-video">
+          <label for="videoHeightSelect" data-i18n="videoHeight"></label>
+          <select id="videoHeightSelect" name="height">
+            <option value="keep" data-i18n="heightKeep"></option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+          </select>
+        </div>
+        <div class="field" data-for="convert-video" id="removeAudioField">
+          <label class="checkbox"><input type="checkbox" id="removeAudioInput" name="removeAudio"><span data-i18n="removeAudio"></span></label>
+        </div>
+
         <div class="field" data-for="rotate">
           <label for="degreesSelect" data-i18n="degrees"></label>
           <select id="degreesSelect" name="degrees">
@@ -265,6 +326,11 @@
         </button>
       </form>
 
+      <div id="progressRow" class="progress-row" hidden>
+        <progress id="progressBar" max="1" aria-labelledby="progressLabel"></progress>
+        <span id="progressLabel" class="visually-hidden" data-i18n="progressLabel"></span>
+        <button type="button" id="cancelButton" class="button"><span data-i18n="cancel"></span></button>
+      </div>
       <p id="status" class="status" role="status" aria-live="polite"></p>
 
       <section id="results" class="results" aria-labelledby="resultsHeading" hidden>
