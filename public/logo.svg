@@ -8,10 +8,14 @@
   <rect width="128" height="128" rx="30" fill="url(#sd-tile)"/>
   <rect x="1.5" y="1.5" width="125" height="125" rx="28.5" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="3"/>
 
-  <!-- a file on the left becomes a different file on the right -->
-  <path d="M22 30h22l10 10v46a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V34a4 4 0 0 1 4-4z" fill="#6c8cff"/>
-  <path d="M44 30v10h10" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M78 38h22l10 10v46a4 4 0 0 1-4 4H78a4 4 0 0 1-4-4V42a4 4 0 0 1 4-4z" fill="#2ec4a6"/>
-  <path d="M100 38v10h10" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M52 100c10 6 22 6 30-2M76 92l6 6-8 3" fill="none" stroke="#f5b942" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- two files side by side, same size and height: one shifts into the other -->
+  <path d="M23 50h22l11 11v41a4 4 0 0 1-4 4H23a4 4 0 0 1-4-4V54a4 4 0 0 1 4-4z" fill="#6c8cff"/>
+  <path d="M45 50v11h11" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M83 50h22l11 11v41a4 4 0 0 1-4 4H83a4 4 0 0 1-4-4V54a4 4 0 0 1 4-4z" fill="#2ec4a6"/>
+  <path d="M105 50v11h11" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- a symmetric arc from the first file to the second; the arrowhead is
+       mirrored about the arc's end tangent (straight down), so it sits square -->
+  <path d="M37.5 41C37.5 17 97.5 17 97.5 39" fill="none" stroke="#f5b942" stroke-width="6" stroke-linecap="round"/>
+  <path d="M88.5 32.5 97.5 41.5 106.5 32.5" fill="none" stroke="#f5b942" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
