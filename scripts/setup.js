@@ -17,11 +17,12 @@ const isWindows = process.platform === 'win32';
 const ENGINES = {
   qpdf: 'merging, splitting, rotating and AES-256 passwords',
   mutool: 'PDF to images (MuPDF)',
-  imagemagick: 'reading images: PNG, JPEG, HEIC, TIFF, WebP...',
+  imagemagick: 'converting images: PNG, JPEG, HEIC, TIFF, WebP...',
 };
 
-// On macOS, Apple's PDFKit already does everything; qpdf adds strong passwords.
-const wanted = isMac && !args.has('--all') ? ['qpdf'] : Object.keys(ENGINES);
+// On macOS, Apple's PDFKit already does the PDF work, so mutool isn't needed;
+// qpdf adds strong passwords and ImageMagick converts images.
+const wanted = isMac && !args.has('--all') ? ['qpdf', 'imagemagick'] : Object.keys(ENGINES);
 
 // Package names per package manager, and how to install with it.
 const MANAGERS = [

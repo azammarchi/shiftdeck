@@ -33,6 +33,7 @@ npm start
 - 📎 **Merge PDFs** in the order you choose
 - ✂️ **Split a PDF** into single pages or page ranges (`1-3, 4, 5-8`)
 - 🖼️ **PDF to images**: every page as PNG or JPEG, at the resolution you pick
+- 🖼️ **Convert images** between PNG, JPEG, HEIC, WebP and TIFF, make them smaller, and remove their hidden details: where a photo was taken (GPS), the camera, the date
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
 - 🔄 **Rotate** every page of a PDF
 - 🔒 **Add a password** with AES-256 encryption, and 🔓 **remove one** you know
@@ -51,10 +52,10 @@ The page in your browser sends your files to a small server on your own computer
 | --- | --- | --- | --- | --- |
 | [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256) | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
 | [mutool](https://mupdf.com) (MuPDF) | PDF to images | not needed | ✓ | ✓ |
-| [ImageMagick](https://imagemagick.org) | Reading images (HEIC included) | not needed | ✓ | ✓ |
+| [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
 
-On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` only adds qpdf there, for strong passwords. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
+On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` adds only qpdf (for strong passwords) and ImageMagick (for images) there. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
 
 | Environment variable | Effect |
 | --- | --- |
@@ -71,7 +72,7 @@ With qpdf, which `npm run setup` installs everywhere, passwords use **AES-256** 
 
 Two layers, both on real files that the tests make fresh:
 
-- **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names, and that the ZIP behind **Download all** reads back intact. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
+- **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names, converted image formats and sizes, phone photos turned upright with their location removed, and that the ZIP behind **Download all** reads back intact. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
 - **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, options, errors, missing engines, downloads, languages and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
 
 ```bash
@@ -86,7 +87,6 @@ npm test
 
 Shiftdeck aims to become a single local converter for the files you deal with every day:
 
-- **Images**: PNG, JPEG, HEIC, TIFF, WebP… to each other, with resizing and removing location data
 - **Audio** and **video**: WAV, MP3, M4A, MP4, MKV, WebM, GIF… with ffmpeg
 - **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
 - **More PDF tools**: compress, reorder and delete pages, a drawn signature, page numbers, OCR
