@@ -110,7 +110,8 @@ With qpdf, which `npm run setup` installs everywhere, passwords use **AES-256** 
 Two layers, both on real files that the tests make fresh:
 
 - **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names, converted image formats and sizes, phone photos turned upright with their location removed, and that the ZIP behind **Download all** reads back intact. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
-- **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, options, errors, missing engines, downloads, languages and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
+- **Command-line tests** run the `shiftdeck` command and a watched folder.
+- **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, dragging pages, drawing a signature, options, progress and Cancel, errors, missing engines, downloads, languages, the online demo (which must never reach a server) and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
 
 ```bash
 npm install
@@ -122,10 +123,11 @@ npm test
 
 ## Roadmap
 
-Shiftdeck aims to become a single local converter for the files you deal with every day:
-
-- **More PDF tools**: OCR (searchable scans), certified digital signatures (PAdES)
+- **OCR**: make scanned PDFs searchable
+- **Certified digital signatures** (PAdES), with a certificate of your own
 - **Desktop integration**: right-click a file in Finder or Explorer to convert it
+- **More languages** for the interface
+- **Installers** that need no terminal: a Homebrew tap, winget and a Linux package
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
