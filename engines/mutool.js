@@ -11,8 +11,9 @@ async function renderPages(input, outDir, prefix, dpi) {
   const file = program();
   if (!file) throw new ToolError('noEngine', 'mutool is not installed');
   // mutool expands %d itself; the % in a file name would confuse it, so it
-  // renders into a fresh folder with a fixed name first.
-  const dir = await fsp.mkdtemp(path.join(outDir, '.render-'));
+  // renders into a fresh folder with a fixed name first. Not a hidden
+  // (dot) folder: Ubuntu's AppArmor profiles for these tools refuse those.
+  const dir = await fsp.mkdtemp(path.join(outDir, 'render-'));
   try {
     const { code, stderr } = await runProgram(file, ['draw', '-q', '-r', String(dpi), '-o', path.join(dir, 'page-%d.png'), input]);
     if (code !== 0) {

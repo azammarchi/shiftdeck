@@ -91,9 +91,10 @@ class ToolError extends Error {
 }
 
 // A file only this user can read, for passing secrets to a program; removed
-// when `use` finishes.
+// when `use` finishes. Its name doesn't start with a dot: Ubuntu confines
+// qpdf with an AppArmor profile that won't let it open hidden files.
 async function withPrivateFile(dir, content, use) {
-  const file = path.join(dir || os.tmpdir(), `.shiftdeck-${require('crypto').randomUUID()}`);
+  const file = path.join(dir || os.tmpdir(), `shiftdeck-${require('crypto').randomUUID()}.json`);
   await fs.promises.writeFile(file, content, { mode: 0o600 });
   try {
     return await use(file);

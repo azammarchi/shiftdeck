@@ -82,7 +82,7 @@ async function makeSampleFiles() {
   fs.writeFileSync(file('notes.txt'), 'not a PDF\n');
 
   const make = async (tool, inputs, options, name) => {
-    const out = path.join(DIR, `.${name}`);
+    const out = path.join(DIR, `making-${name}`);
     fs.mkdirSync(out, { recursive: true });
     const files = inputs.map((n) => ({ path: file(n), name: n }));
     const { outputs } = await runTool(tool, files, options, out);
