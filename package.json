@@ -1,6 +1,6 @@
 {
   "name": "shiftdeck",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Convert and edit files on your computer, locally: convert, resize and clean up images; merge, split, rotate and password-protect PDFs; turn PDFs into images and images into PDFs. macOS, Linux and Windows.",
   "private": true,
   "bin": {
