@@ -1,0 +1,22 @@
+name: Feature request
+description: A new tool, format or idea to make Shiftdeck better
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: The situation or problem, rather than the solution. "I get HEIC photos from my phone and need..."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?
+      description: Your idea for the solution, and a macOS tool or program that could do the job if you know one.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself (see CONTRIBUTING.md)

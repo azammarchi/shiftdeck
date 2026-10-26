@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Security problems go through [private reporting](https://github.com/azammarchi/shiftdeck/security) instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Pick "Split PDF"
+        2. Add a file with 10 pages
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool and options
+      placeholder: Split PDF, pages "1-3, 4"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 27.0
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 27, Chrome 156, Firefox 140...
+    validations:
+      required: true
+  - type: textarea
+    id: engines
+    attributes:
+      label: Engines line printed by npm start
+      render: text
+      placeholder: "Engines: PDFKit yes, qpdf no"
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, the error message, a sample file if you can share it (don't share private documents)...

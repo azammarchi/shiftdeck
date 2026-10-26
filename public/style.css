@@ -1,0 +1,204 @@
+:root {
+  --bg: #14161b;
+  --panel: #1e2129;
+  --panel-hi: #272b36;
+  --border: #353a48;
+  --text: #e8eaf0;
+  --muted: #9aa0b2;
+  --accent: #2ec4a6;
+  --warning: #f5b942;
+  --error: #ff7a7a;
+  /* Text on the accent color: white on it doesn't reach the 4.5:1 contrast
+     WCAG asks for, this dark ink does. */
+  --on-color: #10131a;
+  --radius: 12px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* Buttons get display: inline-flex below, which would otherwise beat the
+   browser's own rule for the hidden attribute. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.sprite { display: none; }
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--panel-hi);
+}
+
+h1 { margin: 0; font-size: 22px; }
+h2 { margin: 0 0 4px; font-size: 20px; }
+h3 { margin: 0; font-size: 15px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.3px; }
+.brand img { display: block; }
+.tagline { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+.language { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(200px, 250px) minmax(0, 760px);
+  gap: 24px;
+  padding: 24px;
+  justify-content: center;
+}
+
+@media (max-width: 760px) {
+  main { grid-template-columns: 1fr; padding: 16px; }
+  header { padding: 16px; }
+}
+
+/* Tool picker: real radio buttons, so arrows, Tab and screen readers work
+   as usual; the label around each one is the visible card. */
+.tools { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+.tools legend { padding: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.tool {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.tool:hover { background: var(--panel); }
+.tool input { position: absolute; opacity: 0; pointer-events: none; }
+.tool:has(input:checked) { background: var(--panel-hi); border-color: var(--accent); }
+.tool:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: 2px; }
+.tool .icon { color: var(--accent); }
+
+.workspace {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.workspace > p { margin: 0; }
+
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+.icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.icon .solid { fill: currentColor; stroke: none; }
+.icon.big { width: 36px; height: 36px; color: var(--muted); }
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone p { margin: 8px 0 0; }
+.dropzone.dragging { border-color: var(--accent); background: var(--panel-hi); }
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-hi);
+  color: var(--text);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover { border-color: var(--muted); }
+.button.primary { align-self: flex-start; background: var(--accent); border-color: var(--accent); color: var(--on-color); font-weight: 700; padding: 10px 18px; }
+.button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.link-button { background: none; border: 0; padding: 4px; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.link-button:hover { color: var(--text); }
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-button:hover:not(:disabled) { color: var(--text); background: var(--panel-hi); }
+.icon-button:disabled { opacity: 0.35; cursor: default; }
+
+.files-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.file-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  background: var(--panel-hi);
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.file-list li.invalid { border-color: var(--error); }
+.file-list li.invalid .muted { color: var(--error); }
+.file-info { display: flex; flex-direction: column; min-width: 0; }
+.file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-actions { display: flex; gap: 2px; flex: none; }
+
+.options { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--panel-hi); padding-top: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label:first-child { font-weight: 600; }
+.field p { margin: 0; }
+input[type="text"], input[type="password"], input[type="number"], select {
+  max-width: 320px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+
+.notice { margin: 0; padding: 10px 14px; border-radius: 8px; border-left: 4px solid; background: var(--panel-hi); }
+.notice.warning { border-color: var(--warning); }
+.notice.info { border-color: var(--accent); }
+.notice.error { border-color: var(--error); margin: 16px 24px 0; }
+
+.status:empty { display: none; }
+.status { margin: 0; padding: 10px 14px; border-radius: 8px; background: var(--panel-hi); }
+.status.success { border-left: 4px solid var(--accent); }
+.status.warning { border-left: 4px solid var(--warning); }
+.status.error { border-left: 4px solid var(--error); }
+
+footer { padding: 16px 24px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* A clear focus ring for keyboard users. */
+:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

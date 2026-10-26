@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+
+# Local Claude Code settings
+.claude/
+
+# Playwright output
+test-results/
+playwright-report/

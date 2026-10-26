@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Shiftdeck">
+  <defs>
+    <linearGradient id="sd-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2f45"/>
+      <stop offset="1" stop-color="#15171f"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#sd-tile)"/>
+  <rect x="1.5" y="1.5" width="125" height="125" rx="28.5" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="3"/>
+
+  <!-- a file on the left becomes a different file on the right -->
+  <path d="M22 30h22l10 10v46a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V34a4 4 0 0 1 4-4z" fill="#6c8cff"/>
+  <path d="M44 30v10h10" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M78 38h22l10 10v46a4 4 0 0 1-4 4H78a4 4 0 0 1-4-4V42a4 4 0 0 1 4-4z" fill="#2ec4a6"/>
+  <path d="M100 38v10h10" fill="none" stroke="#2a2f45" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M52 100c10 6 22 6 30-2M76 92l6 6-8 3" fill="none" stroke="#f5b942" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

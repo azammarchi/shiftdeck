@@ -1,0 +1,58 @@
+# Runs the engine tests and the end-to-end tests on every push and pull
+# request. The converters are the Mac's own, so this runs on macOS. qpdf is
+# installed so the AES-256 path is tested; the tests also hide it to check the
+# PDFKit fallback.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (macOS; WebKit, Firefox, Chromium)
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - run: npm ci
+      - name: Install qpdf
+        run: brew install qpdf
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+      - name: Engine tests
+        run: npm run test:engines
+      # The browsers are cached between runs, keyed by the Playwright version in
+      # the lock file.
+      - id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install webkit firefox chromium
+        timeout-minutes: 5
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

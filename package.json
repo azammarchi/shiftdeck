@@ -1,0 +1,24 @@
+{
+  "name": "shiftdeck",
+  "version": "0.1.0",
+  "description": "Convert and edit files on your Mac, locally: merge, split, rotate and password-protect PDFs, turn PDFs into images and images into PDFs.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "npm run test:engines && npm run test:e2e",
+    "test:engines": "node --test tests/engines.test.js",
+    "test:e2e": "playwright test",
+    "test:install": "playwright install webkit firefox chromium"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "license": "MIT"
+}

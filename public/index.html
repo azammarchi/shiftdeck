@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shiftdeck</title>
+  <meta name="description" content="Convert and edit files on your Mac, without uploading them anywhere.">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Icon set: used as <svg class="icon" aria-hidden="true"><use href="#i-name"/></svg> -->
+  <svg xmlns="http://www.w3.org/2000/svg" class="sprite" aria-hidden="true">
+    <defs>
+      <symbol id="i-merge" viewBox="0 0 24 24"><path d="M8 3v6a4 4 0 0 0 4 4 4 4 0 0 1 4 4v4M16 3v6a4 4 0 0 1-4 4M5 18l3 3 3-3"/></symbol>
+      <symbol id="i-split" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="18" rx="1.5"/><rect x="13" y="3" width="8" height="18" rx="1.5"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/></symbol>
+      <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+      <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" class="solid"/></symbol>
+    </defs>
+  </svg>
+
+  <header>
+    <div>
+      <h1 class="brand"><img src="logo.svg" alt="" width="34" height="34">Shiftdeck</h1>
+      <p class="tagline" data-i18n="tagline"></p>
+    </div>
+    <label class="language">
+      <span data-i18n="language"></span>
+      <select id="languageSelect"></select>
+    </label>
+  </header>
+
+  <p id="engineNotice" class="notice error" role="alert" hidden></p>
+
+  <main>
+    <fieldset class="tools">
+      <legend data-i18n="toolsHeading"></legend>
+      <label class="tool"><input type="radio" name="tool" value="merge" checked><svg class="icon" aria-hidden="true"><use href="#i-merge"/></svg><span data-i18n="tool_merge"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="split"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span data-i18n="tool_split"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="pdf-to-images"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg><span data-i18n="tool_pdf-to-images"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="images-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><span data-i18n="tool_images-to-pdf"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="rotate"><svg class="icon" aria-hidden="true"><use href="#i-rotate"/></svg><span data-i18n="tool_rotate"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="protect"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="tool_protect"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="unlock"><svg class="icon" aria-hidden="true"><use href="#i-unlock"/></svg><span data-i18n="tool_unlock"></span></label>
+    </fieldset>
+
+    <section class="workspace" aria-labelledby="toolTitle">
+      <h2 id="toolTitle"></h2>
+      <p id="toolHint" class="muted"></p>
+
+      <div id="dropZone" class="dropzone">
+        <svg class="icon big" aria-hidden="true"><use href="#i-upload"/></svg>
+        <p><span data-i18n="dropHint"></span>
+          <button type="button" id="chooseButton" class="button"><span data-i18n="chooseFiles"></span></button></p>
+        <p id="acceptsHint" class="muted small"></p>
+        <input type="file" id="fileInput" multiple hidden>
+      </div>
+
+      <div class="files-header">
+        <h3 data-i18n="filesHeading"></h3>
+        <button type="button" id="clearButton" class="link-button" hidden><span data-i18n="clearFiles"></span></button>
+      </div>
+      <p id="noFiles" class="muted" data-i18n="noFiles"></p>
+      <ol id="fileList" class="file-list"></ol>
+
+      <form id="optionsForm" class="options" novalidate>
+        <h3 data-i18n="optionsHeading" id="optionsHeading"></h3>
+
+        <div class="field" data-for="split">
+          <label for="rangesInput" data-i18n="ranges"></label>
+          <input id="rangesInput" name="ranges" type="text" inputmode="numeric" autocomplete="off" placeholder="1-3, 4, 5-8" aria-describedby="rangesHint">
+          <p id="rangesHint" class="muted small" data-i18n="rangesHint"></p>
+        </div>
+
+        <div class="field" data-for="pdf-to-images">
+          <label for="formatSelect" data-i18n="format"></label>
+          <select id="formatSelect" name="format">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+          </select>
+        </div>
+        <div class="field" data-for="pdf-to-images">
+          <label for="dpiInput" data-i18n="dpi"></label>
+          <input id="dpiInput" name="dpi" type="number" min="36" max="600" step="1" value="150" aria-describedby="dpiHint">
+          <p id="dpiHint" class="muted small" data-i18n="dpiHint"></p>
+        </div>
+
+        <div class="field" data-for="images-to-pdf">
+          <label for="pageSizeSelect" data-i18n="pageSize"></label>
+          <select id="pageSizeSelect" name="pageSize">
+            <option value="a4" data-i18n="pageA4"></option>
+            <option value="letter" data-i18n="pageLetter"></option>
+            <option value="original" data-i18n="pageOriginal"></option>
+          </select>
+        </div>
+
+        <div class="field" data-for="rotate">
+          <label for="degreesSelect" data-i18n="degrees"></label>
+          <select id="degreesSelect" name="degrees">
+            <option value="90" data-i18n="deg90"></option>
+            <option value="180" data-i18n="deg180"></option>
+            <option value="270" data-i18n="deg270"></option>
+          </select>
+        </div>
+
+        <div class="field" data-for="protect unlock">
+          <label for="passwordInput" data-i18n="password"></label>
+          <input id="passwordInput" name="password" type="password" autocomplete="new-password">
+          <label class="checkbox"><input type="checkbox" id="showPassword"><span data-i18n="showPassword"></span></label>
+        </div>
+        <p class="notice warning" id="weakNotice" data-for="protect" data-i18n="weakEncryptionNotice" hidden></p>
+        <p class="notice info" id="strongNotice" data-for="protect" data-i18n="strongEncryptionNotice" hidden></p>
+
+        <button type="submit" id="runButton" class="button primary">
+          <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg><span id="runLabel" data-i18n="run"></span>
+        </button>
+      </form>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="results" class="results" aria-labelledby="resultsHeading" hidden>
+        <div class="files-header">
+          <h3 id="resultsHeading" data-i18n="resultsHeading"></h3>
+          <button type="button" id="downloadAllButton" class="button">
+            <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span data-i18n="downloadAll"></span>
+          </button>
+        </div>
+        <ul id="resultList" class="file-list"></ul>
+      </section>
+    </section>
+  </main>
+
+  <footer data-i18n="footer"></footer>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
