@@ -188,8 +188,10 @@ for (const mode of MODES) {
       assert.deepEqual(await marks(topRight.outputs[0], TOP_RIGHT), [true, true]);
 
       // A page turned 90°: the number sits at the bottom of the page as shown.
+      // (A text with some ink: a lone thin "1" can stay too light to count
+      // at this resolution.)
       const turned = await run('rotate', ['two-pages.pdf'], { degrees: 90 });
-      const numbered = await runTool('page-numbers', [{ path: turned.outputs[0], name: 't.pdf' }], {}, outDir());
+      const numbered = await runTool('page-numbers', [{ path: turned.outputs[0], name: 't.pdf' }], { template: 'Page {n} of {total}' }, outDir());
       assert.deepEqual(await marks(numbered.outputs[0], BOTTOM_CENTER), [true, true]);
       assert.deepEqual(await marks(numbered.outputs[0], [0, 0, 0.15, 1]), [false, false]);
     });
