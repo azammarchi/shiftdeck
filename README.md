@@ -10,6 +10,10 @@
 
 **Shiftdeck** converts and edits files on your computer, in a window in your browser. Merge, split and rotate PDFs, turn PDFs into images and photos into PDFs, add or remove a password. No accounts and no uploads: your files go from your browser to your own computer and nowhere else.
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="Shiftdeck turning three iPhone photos into one PDF: the tools on the left, the files in order, the A4 page option and the result ready to download" width="860">
+</p>
+
 ## Quick start
 
 You need [Node.js](https://nodejs.org) 20 or newer. Then, in a terminal:
@@ -33,6 +37,7 @@ npm start
 - 🔄 **Rotate** every page of a PDF
 - 🔒 **Add a password** with AES-256 encryption, and 🔓 **remove one** you know
 - 🗂️ **Many files at once**: tools that work on one file do each of them in turn
+- 🗜️ **Download all** the results of a run as one ZIP
 - 💻 **macOS, Linux and Windows**
 - 🌐 **English and Italiano**, picked from your browser's language
 - ♿ **Accessible**: keyboard-only use, screen reader labels and announcements, WCAG 2.1 AA contrast ([details](ACCESSIBILITY.md))
@@ -66,7 +71,7 @@ With qpdf, which `npm run setup` installs everywhere, passwords use **AES-256** 
 
 Two layers, both on real files that the tests make fresh:
 
-- **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
+- **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names, and that the ZIP behind **Download all** reads back intact. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
 - **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, options, errors, missing engines, downloads, languages and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
 
 ```bash

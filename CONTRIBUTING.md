@@ -34,6 +34,7 @@ Where things live:
 | `engines/qpdf.js`, `mutool.js`, `imagemagick.js` | The cross-platform engines |
 | `engines/pdfwrite.js` | A tiny PDF writer (one image per page), so images to PDF needs no PDF engine |
 | `engines/run.js` | Finding programs on every system and running them safely |
+| `lib/zip.js` | A tiny ZIP writer, for **Download all** |
 | `scripts/setup.js` | `npm run setup`: installs the engines with the system's package manager |
 | `tests/` | Engine tests (`*.test.js`) and Playwright end-to-end tests (`*.spec.js`) |
 
