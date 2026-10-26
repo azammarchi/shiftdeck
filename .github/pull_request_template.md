@@ -4,13 +4,13 @@
 
 ## Checklist
 
-- [ ] `npm test` passes (engine tests, then WebKit, Firefox and Chromium)
+- [ ] `npm test` passes (engine tests, then WebKit, Firefox and Chromium); CI checks macOS, Linux and Windows
 - [ ] Tests added or updated for the change, in the engine tests and/or end to end
 - [ ] Commit messages follow `type(scope): description` (see CONTRIBUTING.md)
 - [ ] If the interface text changed: updated in every language in `public/i18n.js`
 - [ ] If behavior changed: README updated
 - [ ] New controls have a name and a keyboard path
-- [ ] No new runtime dependencies; programs are run with an argument list, never a shell
+- [ ] No new npm dependencies; programs are run with an argument list, never a shell, and new engines are in `npm run setup` for every system
 
 ## Screenshots
 

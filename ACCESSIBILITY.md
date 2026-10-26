@@ -17,8 +17,8 @@ Every push runs [axe-core](https://github.com/dequelabs/axe-core) WCAG 2.1 AA ch
 
 ## Known limitations
 
-- **No manual screen reader testing yet.** The app passes automated checks, but it hasn't been tried end to end with VoiceOver by someone who uses it every day. Reports are especially welcome here.
-- **Drag and drop** of files from Finder is mouse-only; the **Choose files** button does the same from the keyboard.
+- **No manual screen reader testing yet.** The app passes automated checks, but it hasn't been tried end to end with VoiceOver, NVDA or Orca by someone who uses it every day. Reports are especially welcome here.
+- **Drag and drop** of files from your file manager is mouse-only; the **Choose files** button does the same from the keyboard.
 
 ## Reporting a barrier
 

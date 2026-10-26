@@ -1,15 +1,28 @@
 <p align="center">
-  <img src="public/logo.svg" alt="" width="96">
+  <img src="docs/banner.svg" alt="Shiftdeck: convert files, nothing leaves your computer. macOS, Linux, Windows" width="100%">
 </p>
-
-<h1 align="center">Shiftdeck</h1>
 
 <p align="center">
   <a href="https://github.com/azammarchi/shiftdeck/actions/workflows/ci.yml"><img src="https://github.com/azammarchi/shiftdeck/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/runs%20on-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-555.svg" alt="Runs on macOS, Linux and Windows">
 </p>
 
-**Shiftdeck** converts and edits files on your Mac, in a window in your browser. Merge, split and rotate PDFs, turn PDFs into images and photos into PDFs, add or remove a password. No accounts and no uploads: your files go from your browser to your own Mac and nowhere else, and the converters are the ones built into macOS.
+**Shiftdeck** converts and edits files on your computer, in a window in your browser. Merge, split and rotate PDFs, turn PDFs into images and photos into PDFs, add or remove a password. No accounts and no uploads: your files go from your browser to your own computer and nowhere else.
+
+## Quick start
+
+You need [Node.js](https://nodejs.org) 20 or newer. Then, in a terminal:
+
+```bash
+git clone https://github.com/azammarchi/shiftdeck.git
+cd shiftdeck
+npm run setup
+npm start
+```
+
+- **`npm run setup`** installs the programs Shiftdeck's tools use, with your system's own package manager, and checks that they work. Run it once (and again any time: it only installs what's missing).
+- **`npm start`** opens Shiftdeck in your browser at <http://localhost:5174>. When you close its tab, it stops by itself and deletes the temporary copies of your files.
 
 ## Features
 
@@ -18,56 +31,43 @@
 - 🖼️ **PDF to images**: every page as PNG or JPEG, at the resolution you pick
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
 - 🔄 **Rotate** every page of a PDF
-- 🔒 **Add a password** (AES-256 with [qpdf](https://qpdf.readthedocs.io); see [Passwords](#passwords)) and 🔓 **remove one** you know
+- 🔒 **Add a password** with AES-256 encryption, and 🔓 **remove one** you know
 - 🗂️ **Many files at once**: tools that work on one file do each of them in turn
+- 💻 **macOS, Linux and Windows**
 - 🌐 **English and Italiano**, picked from your browser's language
 - ♿ **Accessible**: keyboard-only use, screen reader labels and announcements, WCAG 2.1 AA contrast ([details](ACCESSIBILITY.md))
-- 📦 **Zero dependencies**: plain HTML, CSS and JavaScript, plus the converters macOS already has
+- 📦 **No npm dependencies**: plain HTML, CSS and JavaScript, plus well-known open-source converters
 
-## Run it
+## How it works
 
-You need a Mac and [Node.js](https://nodejs.org) 20 or newer (no packages to install):
+The page in your browser sends your files to a small server on your own computer (`server.js`, listening only on `localhost`), which runs the conversion and hands back the results as downloads. The conversions are done by **engines**, programs that `npm run setup` installs:
 
-```bash
-npm start
-```
+| Engine | Used for | macOS | Linux | Windows |
+| --- | --- | --- | --- | --- |
+| [qpdf](https://qpdf.readthedocs.io) | Merging, splitting, rotating, passwords (AES-256) | Homebrew | apt, dnf, pacman, zypper | winget, Chocolatey |
+| [mutool](https://mupdf.com) (MuPDF) | PDF to images | not needed | ✓ | ✓ |
+| [ImageMagick](https://imagemagick.org) | Reading images (HEIC included) | not needed | ✓ | ✓ |
+| PDFKit (Apple) | Every PDF tool | built in | – | – |
 
-Your default browser opens at <http://localhost:5174>. If that port is busy, the next free one is used. When you close the app's tab the server stops by itself, and the temporary copies of your files are deleted.
+On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` only adds qpdf there, for strong passwords. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
 
 | Environment variable | Effect |
 | --- | --- |
 | `PORT=8080` | Use a different port |
 | `NO_OPEN=1` | Don't open the browser |
 | `KEEP_RUNNING=1` | Keep the server running after the last tab closes |
-| `SHIFTDECK_DISABLE_ENGINES=qpdf` | Act as if an optional engine wasn't installed |
-
-## How it works
-
-The page in your browser sends your files to a small server on your own Mac (`server.js`, listening only on `localhost`), which runs the conversion and hands back the results as downloads. The conversions are done by **engines**:
-
-| Engine | Comes with | Used for |
-| --- | --- | --- |
-| **PDFKit** (Apple), through JavaScript for Automation | macOS | Every PDF tool |
-| **qpdf** | `brew install qpdf` (optional) | AES-256 passwords |
-
-When the server starts it prints which engines it found, and the app adapts to them.
+| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`) |
 
 ### Passwords
 
-macOS's own PDFKit can only protect a PDF with **RC4 128-bit** encryption, which is old and considered weak. Install qpdf to get **AES-256** instead:
-
-```bash
-brew install qpdf
-```
-
-Without qpdf, Shiftdeck still adds the password, but it tells you plainly that the protection is weak. Removing a password needs the password: Shiftdeck doesn't crack PDFs.
+With qpdf, which `npm run setup` installs everywhere, passwords use **AES-256** encryption. If qpdf is missing on a Mac, Shiftdeck falls back to PDFKit, which can only write **RC4 128-bit**, an old and weak encryption, and tells you so plainly. Removing a password needs the password: Shiftdeck doesn't crack PDFs.
 
 ## Tests
 
-Two layers, both on real files made fresh by the tests with the Mac's own tools:
+Two layers, both on real files that the tests make fresh:
 
-- **Engine tests** (`node --test`) run every tool and check the results with PDFKit: page counts, page sizes, rotation, image resolution, encryption type, wrong passwords, odd file names.
-- **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, options, errors, downloads, languages and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
+- **Engine tests** (`node --test`) run every tool and check the results: page counts, page sizes, rotation, image resolution, lossless images, encryption type, wrong passwords, odd file names. They run once for each set of engines the computer has: PDFKit on a Mac, and qpdf, mutool and ImageMagick anywhere.
+- **End-to-end tests** ([Playwright](https://playwright.dev)) use the app like a person would, in **WebKit** (Safari's engine), **Firefox** and **Chromium**: picking tools, adding and reordering files, options, errors, missing engines, downloads, languages and accessibility (with [axe-core](https://github.com/dequelabs/axe-core)).
 
 ```bash
 npm install
@@ -75,18 +75,17 @@ npm run test:install
 npm test
 ```
 
-`npm install` only adds the test tools: the app itself has no dependencies. On GitHub, [CI](.github/workflows/ci.yml) runs everything on macOS, with qpdf installed, on every push and pull request.
+`npm install` only adds the test tools: the app itself has no npm dependencies. On GitHub, [CI](.github/workflows/ci.yml) runs everything on **macOS, Linux and Windows** on every push and pull request, each machine installing its engines with `npm run setup`.
 
 ## Roadmap
 
-Shiftdeck aims to become a single local converter for the files you deal with every day, always with the Mac's own tools first and optional engines for the rest:
+Shiftdeck aims to become a single local converter for the files you deal with every day:
 
-- **Images**: PNG, JPEG, HEIC, TIFF… to each other, with resizing (`sips`)
-- **Audio**: WAV, AIFF, M4A/AAC… (`afconvert`), more with ffmpeg
-- **Video**: MOV/MP4 (`avconvert`), MKV, WebM, GIF with ffmpeg
-- **Documents**: DOCX, RTF, HTML, TXT (`textutil`), DOCX to PDF with LibreOffice
+- **Images**: PNG, JPEG, HEIC, TIFF, WebP… to each other, with resizing and removing location data
+- **Audio** and **video**: WAV, MP3, M4A, MP4, MKV, WebM, GIF… with ffmpeg
+- **Documents**: DOCX, ODT, RTF to PDF with LibreOffice
 - **More PDF tools**: compress, reorder and delete pages, a drawn signature, page numbers, OCR
-- **Finder Quick Actions** and a watched folder
+- **Desktop integration**: right-click a file to convert it, a watched folder
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 

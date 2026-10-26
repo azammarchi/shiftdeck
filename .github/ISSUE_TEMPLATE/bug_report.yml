@@ -31,10 +31,10 @@ body:
     validations:
       required: true
   - type: input
-    id: macos
+    id: os
     attributes:
-      label: macOS version
-      placeholder: macOS 27.0
+      label: Operating system
+      placeholder: macOS 27, Windows 11, Ubuntu 26.04...
     validations:
       required: true
   - type: input
@@ -49,7 +49,7 @@ body:
     attributes:
       label: Engines line printed by npm start
       render: text
-      placeholder: "Engines: PDFKit yes, qpdf no"
+      placeholder: "Engines: pdfkit no, qpdf yes, mutool yes, imagemagick yes"
   - type: textarea
     id: extra
     attributes:

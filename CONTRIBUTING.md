@@ -4,15 +4,16 @@ Thanks for taking the time to help! Bug reports, ideas, translations, new engine
 
 ## Reporting a bug or suggesting an idea
 
-Open an [issue](https://github.com/azammarchi/shiftdeck/issues/new/choose) and pick a template. For bugs, the most useful things to include are your macOS version, your browser, which engines `npm start` reported, the tool and options you used, and, if you can share it, a file that shows the problem.
+Open an [issue](https://github.com/azammarchi/shiftdeck/issues/new/choose) and pick a template. For bugs, the most useful things to include are your operating system, your browser, the engines line `npm start` printed, the tool and options you used, and, if you can share it, a file that shows the problem.
 
 Security problems are the exception: please report them privately, as described in [SECURITY.md](SECURITY.md).
 
 ## Working on the code
 
-Shiftdeck is plain HTML, CSS and JavaScript with no build step and no runtime dependencies. You need a Mac and [Node.js](https://nodejs.org) 20 or newer.
+Shiftdeck is plain HTML, CSS and JavaScript with no build step and no npm dependencies at runtime. It runs on macOS, Linux and Windows; you need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
+npm run setup         # installs the engines (qpdf, mutool, ImageMagick) this system needs
 npm start             # runs the app at http://localhost:5174
 npm install           # test tools only (Playwright, axe-core)
 npm run test:install  # the browsers the tests drive
@@ -28,16 +29,19 @@ Where things live:
 | `public/i18n.js` | All interface text, in every language |
 | `public/style.css` | Styles |
 | `server.js` | Tiny local server (no dependencies): uploads, running tools, downloads |
-| `engines/index.js` | The tools: which files they take, their options, which engine runs them |
-| `engines/pdfkit.jxa.js` | PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |
-| `engines/qpdf.js` | The optional qpdf engine |
+| `engines/index.js` | The tools: which files they take, their options, which engine runs each one |
+| `engines/pdfkit.js`, `pdfkit.jxa.js` | macOS: PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |
+| `engines/qpdf.js`, `mutool.js`, `imagemagick.js` | The cross-platform engines |
+| `engines/pdfwrite.js` | A tiny PDF writer (one image per page), so images to PDF needs no PDF engine |
+| `engines/run.js` | Finding programs on every system and running them safely |
+| `scripts/setup.js` | `npm run setup`: installs the engines with the system's package manager |
 | `tests/` | Engine tests (`*.test.js`) and Playwright end-to-end tests (`*.spec.js`) |
 
 ### Adding a tool or an engine
 
 1. Add the tool to `TOOLS` in `engines/index.js`: the extensions it accepts, whether it combines files or works on each one, and a `run` function that writes into the folder it gets.
-2. If it needs a program, add an engine module that finds it with `findProgram()` and runs it with `runProgram()` from `engines/run.js`. **Never** run anything through a shell: file names are data a user chose, and an argument array keeps them that way. Secrets (passwords) never go on the command line, where `ps` shows them: use an environment variable or a file only the user can read, as the existing engines do.
-3. Prefer what ships with macOS. When an optional engine is better, keep a fallback if there is one, and tell the user what they're missing and how to install it.
+2. If it needs a program, add an engine module that finds it with `findProgram()` and runs it with `runProgram()` from `engines/run.js`, and add its packages to `scripts/setup.js` for every package manager there. **Never** run anything through a shell: file names are data a user chose, and an argument array keeps them that way. Secrets (passwords) never go on the command line, where `ps` shows them: use an environment variable or a file only the user can read, as the existing engines do.
+3. **It must work on macOS, Linux and Windows.** Pick programs that exist on all three (and are in their package managers); on macOS, what ships with the system can be used first, as PDFKit is. A tool's `needs()` lists missing engines, so the app can tell the user to run `npm run setup`.
 4. Add the tool's name, hint and options to `public/index.html` and `public/i18n.js`, then tests in both layers.
 
 ### JavaScript for Automation gotchas
@@ -47,9 +51,9 @@ Where things live:
 ## Guidelines
 
 - **English only** for code, comments, docs and commit messages. Interface text goes in `public/i18n.js`, never directly in HTML or JavaScript.
-- **Keep it dependency-free.** No npm packages at runtime; outside programs only as optional engines.
+- **Keep it dependency-free.** No npm packages at runtime; outside programs only as engines that `npm run setup` installs.
 - **Add or update tests** for what you change. End-to-end tests use real mouse and keyboard input (`page.mouse`, `page.keyboard`, clicks) rather than synthetic events.
-- **Check every browser.** `npm test` runs WebKit (Safari's engine), Firefox and Chromium; CI runs the same on macOS for every pull request.
+- **Check every browser.** `npm test` runs WebKit (Safari's engine), Firefox and Chromium; CI runs the same on macOS, Linux and Windows for every pull request.
 - **Keep it accessible.** New controls need a name and a keyboard path; `tests/a11y.spec.js` runs axe-core on every tool. See [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
 ### Translations
