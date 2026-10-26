@@ -12,6 +12,7 @@ const state = {
   engines: {},
   files: [], // { key, name, size, ext, id, upload: Promise, error }
   busy: false,
+  loaded: false, // the tools and engines have come from the server
 };
 let nextKey = 1;
 
@@ -199,7 +200,7 @@ function renderFiles() {
 
 function updateRunButton() {
   const run = $('runButton');
-  run.disabled = state.busy || (currentTool().needs || []).length > 0;
+  run.disabled = state.busy || !state.loaded || (currentTool().needs || []).length > 0;
   run.setAttribute('aria-busy', String(state.busy));
   $('runLabel').textContent = t(state.busy ? 'running' : 'run');
 }
@@ -343,6 +344,7 @@ async function loadStatus() {
     const body = await response.json();
     state.tools = body.tools;
     state.engines = body.engines;
+    state.loaded = true;
   } catch {
     $('engineNotice').textContent = t('serverDown');
     $('engineNotice').hidden = false;
@@ -383,8 +385,11 @@ async function init() {
     if (!state.busy) runTool();
   });
 
-  await loadStatus();
+  // The page shows the chosen tool right away; Convert waits until the server
+  // has said which tools and formats this computer has.
   selectTool(document.querySelector('input[name="tool"]:checked').value);
+  await loadStatus();
+  selectTool(state.tool);
 
   // Keeps the local server running while this tab is open (see server.js).
   new EventSource('/events');

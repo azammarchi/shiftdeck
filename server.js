@@ -319,6 +319,10 @@ function listen(port, attemptsLeft) {
 }
 
 server.on('listening', () => {
+  // Some tools ask their engine what it can do (ImageMagick's formats, for
+  // one), which takes a moment: ask now, so the app's first request finds the
+  // answer ready.
+  for (const tool of Object.values(TOOLS)) tool.details?.().catch(() => {});
   const url = `http://localhost:${server.address().port}`;
   const found = engines();
   const missing = Object.entries(TOOLS).flatMap(([, tool]) => tool.needs()).filter((v, i, all) => all.indexOf(v) === i);
