@@ -11,7 +11,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { runTool, info, engines, pageThumbnails } = require('../engines');
 const { findProgram } = require('../engines/run');
-const { makeSampleFiles, sample, hasSample, imageSize, PASSWORD } = require('./sample-files');
+const { makeSampleFiles, sample, hasSample, imageSize, darkPixels, signatureDataUrl, PASSWORD } = require('./sample-files');
 
 const A4 = [595, 842];
 const A4_LANDSCAPE = [842, 595];
@@ -165,6 +165,53 @@ for (const mode of MODES) {
       assert.deepEqual(thumbnails.map((p) => p.size), [A4, A4_LANDSCAPE, A4]);
       const [w, h] = pixelSize(thumbnails[1].image);
       assert.ok(w > h && w < 600, `landscape thumbnail ${w}x${h}`);
+    });
+
+    // Renders a PDF's pages and says which regions have dark marks on them.
+    const marks = async (pdf, region) => {
+      const { outputs } = await runTool('pdf-to-images', [{ path: pdf, name: 'check.pdf' }], { format: 'png', dpi: 50 }, outDir());
+      return outputs.map((png) => darkPixels(png, region) > 0);
+    };
+    const BOTTOM_CENTER = [0.35, 0.88, 0.65, 1];
+    const TOP_RIGHT = [0.7, 0, 1, 0.12];
+    const BOTTOM_RIGHT = [0.55, 0.7, 1, 1];
+
+    test('page numbers go where asked, upright on turned pages too', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      const { outputs } = await run('page-numbers', ['mixed.pdf'], { template: 'Page {n} of {total}', skipFirst: true });
+      assert.equal(path.basename(outputs[0]), 'mixed-numbered.pdf');
+      assert.deepEqual(await marks(outputs[0], BOTTOM_CENTER), [false, true, true]);
+      assert.deepEqual(await marks(outputs[0], TOP_RIGHT), [false, false, false]);
+
+      const topRight = await run('page-numbers', ['two-pages.pdf'], { position: 'top-right', start: 7, size: 20 });
+      assert.deepEqual(await marks(topRight.outputs[0], TOP_RIGHT), [true, true]);
+
+      // A page turned 90°: the number sits at the bottom of the page as shown.
+      const turned = await run('rotate', ['two-pages.pdf'], { degrees: 90 });
+      const numbered = await runTool('page-numbers', [{ path: turned.outputs[0], name: 't.pdf' }], {}, outDir());
+      assert.deepEqual(await marks(numbered.outputs[0], BOTTOM_CENTER), [true, true]);
+      assert.deepEqual(await marks(numbered.outputs[0], [0, 0, 0.15, 1]), [false, false]);
+    });
+
+    test('page numbers refuse text without {n} and unknown positions', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      await rejectsWith(run('page-numbers', ['mixed.pdf'], { template: 'Chapter one' }), 'badOption');
+      await rejectsWith(run('page-numbers', ['mixed.pdf'], { position: 'middle' }), 'badOption');
+      await rejectsWith(run('page-numbers', ['protected.pdf'], {}), 'locked');
+    });
+
+    test('a signature goes on the page and corner asked, only there', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      const last = await run('sign', ['mixed.pdf'], { signature: signatureDataUrl() });
+      assert.equal(path.basename(last.outputs[0]), 'mixed-signed.pdf');
+      assert.deepEqual(await marks(last.outputs[0], BOTTOM_RIGHT), [false, false, true]);
+      const first = await run('sign', ['mixed.pdf'], { signature: signatureDataUrl(), page: 1, position: 'top-left', width: 200 });
+      assert.deepEqual(await marks(first.outputs[0], [0, 0, 0.5, 0.25]), [true, false, false]);
+      assert.deepEqual(await marks(first.outputs[0], BOTTOM_RIGHT), [false, false, false]);
+    });
+
+    test('signing refuses a missing or broken signature and pages that don\'t exist', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {
+      await rejectsWith(run('sign', ['mixed.pdf'], {}), 'noSignature');
+      await rejectsWith(run('sign', ['mixed.pdf'], { signature: 'data:image/png;base64,AAAA' }), 'badOption');
+      await rejectsWith(run('sign', ['mixed.pdf'], { signature: signatureDataUrl(), page: 9 }), 'badOption');
+      await rejectsWith(run('sign', ['protected.pdf'], { signature: signatureDataUrl() }), 'locked');
     });
 
     test('protect and unlock with qpdf use AES-256', { skip: !engines().qpdf && 'qpdf is not installed' }, async () => {

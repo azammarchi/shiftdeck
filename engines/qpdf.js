@@ -89,6 +89,13 @@ function organize(input, output, pages, workDir) {
   return qpdf(['--empty', '--pages', input, pages.map(([page]) => page).join(','), '--', ...rotations, output], { workDir });
 }
 
+// Lays the pages of `layer` over pages of `input`: page `from` of the layer
+// on page `to` (qpdf page ranges, "1-z" for all). qpdf turns the layer to
+// match each page's rotation, so a layer drawn at the page's shown size
+// comes out upright.
+const overlay = (input, layer, output, { to = '1-z', from = '1-z' } = {}, workDir) =>
+  qpdf([input, '--overlay', layer, `--to=${to}`, `--from=${from}`, '--', output], { workDir });
+
 const encrypt = (input, output, password, workDir) =>
   qpdfJob({ inputFile: input, outputFile: output, encrypt: { userPassword: password, ownerPassword: password, '256bit': {} } }, { workDir });
 
@@ -102,6 +109,7 @@ module.exports = {
   extract,
   rotate,
   organize,
+  overlay,
   encrypt,
   decrypt,
 };

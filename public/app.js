@@ -75,6 +75,8 @@ function selectTool(name) {
   $('optionsHeading').hidden = visibleFields === 0;
   if (name === 'convert-images') updateImageOptions();
   if (name === 'organize') loadPages();
+  if (name === 'page-numbers') updateNumberFormats();
+  if (name === 'sign') sizeSignaturePad();
   $('results').hidden = true;
   setStatus('');
   renderFiles();
@@ -99,6 +101,138 @@ function updateImageOptions() {
   $('formatsHint').textContent = t('formatsUnavailable', { formats: new Intl.ListFormat(currentLanguage).format(unavailable) });
   $('formatsHint').hidden = unavailable.length === 0 || writable.length === 0;
   $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
+}
+
+// ---------------------------------------------------------------------------
+// Page numbers: the text choices, in the app's language, with an example.
+// ---------------------------------------------------------------------------
+function updateNumberFormats() {
+  const select = $('numberFormatSelect');
+  const chosen = select.selectedIndex;
+  const formats = ['{n}', '{n} / {total}', t('numberFormatLong'), '– {n} –'];
+  select.replaceChildren(...formats.map((template) => {
+    const option = document.createElement('option');
+    option.value = template;
+    option.textContent = template.replaceAll('{n}', '1').replaceAll('{total}', '12');
+    return option;
+  }));
+  select.selectedIndex = Math.max(0, chosen);
+}
+
+// ---------------------------------------------------------------------------
+// Sign: a pad to draw a signature on (mouse, finger or pen), or a typed name
+// written in a handwriting-like font. Only the ink is sent, cropped, as PNG.
+// ---------------------------------------------------------------------------
+const INK = '#1c2a6b';
+let signatureSource = null; // 'drawn', 'typed' or null
+
+function sizeSignaturePad() {
+  const pad = $('signaturePad');
+  const ratio = window.devicePixelRatio || 1;
+  const width = Math.round(pad.clientWidth * ratio);
+  const height = Math.round(pad.clientHeight * ratio);
+  // Resizing clears a canvas, so only do it while it's empty.
+  if (!width || signatureSource || (pad.width === width && pad.height === height)) return;
+  pad.width = width;
+  pad.height = height;
+}
+
+function clearSignature() {
+  const pad = $('signaturePad');
+  pad.getContext('2d').clearRect(0, 0, pad.width, pad.height);
+  signatureSource = null;
+}
+
+function drawTypedName(name) {
+  const pad = $('signaturePad');
+  const context = pad.getContext('2d');
+  context.clearRect(0, 0, pad.width, pad.height);
+  signatureSource = name ? 'typed' : null;
+  if (!name) return;
+  let size = pad.height * 0.45;
+  const font = (px) => `italic ${px}px "Snell Roundhand", "Segoe Script", "Brush Script MT", "URW Chancery L", cursive`;
+  context.font = font(size);
+  // Long names get a smaller font, so they fit.
+  while (context.measureText(name).width > pad.width * 0.9 && size > 10) context.font = font((size *= 0.9));
+  context.fillStyle = INK;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(name, pad.width / 2, pad.height / 2);
+}
+
+function setUpSignaturePad() {
+  const pad = $('signaturePad');
+  const context = () => pad.getContext('2d');
+  let drawing = false;
+  const point = (e) => {
+    const box = pad.getBoundingClientRect();
+    return [((e.clientX - box.left) * pad.width) / box.width, ((e.clientY - box.top) * pad.height) / box.height];
+  };
+  pad.addEventListener('pointerdown', (e) => {
+    sizeSignaturePad();
+    if (signatureSource === 'typed') {
+      $('typedNameInput').value = '';
+      clearSignature();
+    }
+    drawing = true;
+    pad.setPointerCapture(e.pointerId);
+    const ctx = context();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(...point(e));
+    // A tap leaves a dot.
+    ctx.lineTo(...point(e).map((v) => v + 0.1));
+    ctx.stroke();
+    signatureSource = 'drawn';
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const ctx = context();
+    ctx.lineTo(...point(e));
+    ctx.stroke();
+  });
+  const stop = () => { drawing = false; };
+  pad.addEventListener('pointerup', stop);
+  pad.addEventListener('pointercancel', stop);
+  $('clearSignatureButton').addEventListener('click', () => {
+    $('typedNameInput').value = '';
+    clearSignature();
+  });
+  $('typedNameInput').addEventListener('input', (e) => {
+    sizeSignaturePad();
+    drawTypedName(e.target.value.trim());
+  });
+}
+
+// The signature as a PNG data URL, cropped to the ink (plus a little room),
+// or null when nothing has been drawn or typed.
+function signatureImage() {
+  if (!signatureSource) return null;
+  const pad = $('signaturePad');
+  const { data, width, height } = pad.getContext('2d').getImageData(0, 0, pad.width, pad.height);
+  let [left, top, right, bottom] = [width, height, -1, -1];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 0) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  if (right < 0) return null;
+  const room = 4;
+  [left, top] = [Math.max(0, left - room), Math.max(0, top - room)];
+  [right, bottom] = [Math.min(width - 1, right + room), Math.min(height - 1, bottom + room)];
+  const crop = document.createElement('canvas');
+  crop.width = right - left + 1;
+  crop.height = bottom - top + 1;
+  crop.getContext('2d').drawImage(pad, left, top, crop.width, crop.height, 0, 0, crop.width, crop.height);
+  return crop.toDataURL('image/png');
 }
 
 // ---------------------------------------------------------------------------
@@ -375,6 +509,10 @@ function readOptions() {
       if (el.value !== '') options[el.name] = Number(el.value);
     } else options[el.name] = el.value;
   }
+  if (state.tool === 'sign') {
+    const signature = signatureImage();
+    if (signature) options.signature = signature;
+  }
   if (state.tool === 'organize' && state.pages) {
     options.pages = state.pages.filter((p) => !p.deleted).map(({ page, turn }) => ({ page, turn }));
   }
@@ -552,6 +690,7 @@ async function init() {
     setStatus(t('pagesReset'));
   });
   setUpPageDragging();
+  setUpSignaturePad();
   $('showPassword').addEventListener('change', (e) => {
     $('passwordInput').type = e.target.checked ? 'text' : 'password';
   });

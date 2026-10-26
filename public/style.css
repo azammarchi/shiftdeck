@@ -183,6 +183,10 @@ main {
 .page-actions .icon-button { width: 26px; height: 26px; }
 .page-actions .icon { width: 16px; height: 16px; }
 
+/* Sign: the pad shows on a light, paper-like background, but what is drawn
+   stays on a transparent canvas, so only the ink goes on the page. */
+.signature-pad { width: 100%; max-width: 520px; height: 180px; background: #f4f3ee; border-radius: 8px; touch-action: none; cursor: crosshair; }
+
 .options { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--panel-hi); padding-top: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label:first-child { font-weight: 600; }

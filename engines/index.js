@@ -12,7 +12,8 @@ const pdfkitEngine = require('./pdfkit');
 const qpdf = require('./qpdf');
 const mutool = require('./mutool');
 const imagemagick = require('./imagemagick');
-const { writePdf, jpegFrame } = require('./pdfwrite');
+const { writePdf, jpegFrame, textWidth } = require('./pdfwrite');
+const { readPng } = require('../lib/png');
 const { ToolError } = require('./run');
 
 const { pdfkit } = pdfkitEngine;
@@ -57,6 +58,32 @@ function integer(options, key, min, max, fallback) {
   const value = Number(raw);
   if (!Number.isInteger(value) || value < min || value > max) throw new ToolError('badOption', `${key} must be a whole number from ${min} to ${max}`);
   return value;
+}
+
+// Where page numbers and signatures go: how far from the page's edges, in
+// points (28 is about 1 cm).
+const STAMP_POSITIONS = ['bottom-center', 'bottom-right', 'bottom-left', 'top-center', 'top-right', 'top-left'];
+const STAMP_MARGIN = 28;
+
+// x, y (bottom left, in points) of something w × h placed at `position` on a
+// page of the given shown size.
+function placeStamp(position, [pageW, pageH], w, h, margin = STAMP_MARGIN) {
+  const [vertical, horizontal] = position.split('-');
+  const x = horizontal === 'left' ? margin : horizontal === 'right' ? pageW - margin - w : (pageW - w) / 2;
+  const y = vertical === 'bottom' ? margin : pageH - margin - h;
+  return [x, y];
+}
+
+// Writes `layer` pages to a PDF next to `output`, lays them over `input` with
+// qpdf, and removes the layer file.
+async function stamp(input, output, layerPages, placement, outDir) {
+  const layer = path.join(outDir, `layer-${path.basename(output)}`);
+  await writePdf(layer, layerPages);
+  try {
+    await qpdf.overlay(input, layer, output, placement, outDir);
+  } finally {
+    await fsp.rm(layer, { force: true });
+  }
 }
 
 // The page list "Organize pages" sends: [{ page, turn }], 1-based pages in
@@ -241,6 +268,64 @@ const TOOLS = {
       const output = path.join(outDir, `${stem(file.name)}-organized.pdf`);
       if (native()) return pdfkit('organize', [file.path, output, JSON.stringify(pages)]);
       await qpdf.organize(file.path, output, pages, outDir);
+      return { outputs: [output] };
+    },
+  },
+
+  'page-numbers': {
+    accepts: PDF_TYPES,
+    mode: 'each',
+    needs: () => missing('qpdf'),
+    async run(file, options, outDir) {
+      const position = option(options, 'position', STAMP_POSITIONS, 'bottom-center');
+      const template = typeof options.template === 'string' && options.template.trim() ? options.template.trim() : '{n}';
+      if (template.length > 80 || !template.includes('{n}')) throw new ToolError('badOption', 'the text must contain {n}, the page number');
+      const start = integer(options, 'start', 0, 100000, 1);
+      const size = integer(options, 'size', 6, 48, 11);
+      const skipFirst = options.skipFirst === true;
+      const { pages } = await unlockedInfo(file.path);
+      const total = start + pages.length - 1;
+      // One layer page per page, at the size it is shown; the first one is
+      // left blank when it shouldn't get a number.
+      const layer = pages.map((page, i) => {
+        if (skipFirst && i === 0) return { width: page.size[0], height: page.size[1], draw: [] };
+        const text = template.replaceAll('{n}', String(start + i)).replaceAll('{total}', String(total));
+        // Text sits on its baseline: lift it by its descent (about a fifth
+        // of the size) at the bottom, and keep its height inside at the top.
+        const [x, y] = placeStamp(position, page.size, textWidth(text, size), size * 0.75);
+        return { width: page.size[0], height: page.size[1], draw: [{ text, x, y: position.startsWith('bottom') ? y + size * 0.2 : y, size }] };
+      });
+      const output = path.join(outDir, `${stem(file.name)}-numbered.pdf`);
+      await stamp(file.path, output, layer, {}, outDir);
+      return { outputs: [output] };
+    },
+  },
+
+  sign: {
+    accepts: PDF_TYPES,
+    mode: 'each',
+    needs: () => missing('qpdf'),
+    async run(file, options, outDir) {
+      const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(typeof options.signature === 'string' ? options.signature : '');
+      if (!match) throw new ToolError('noSignature', 'draw a signature first');
+      if (match[1].length > 4 * 1024 * 1024) throw new ToolError('badOption', 'the signature image is too large');
+      let image;
+      try {
+        image = readPng(Buffer.from(match[1], 'base64'));
+      } catch (err) {
+        throw new ToolError('badOption', `the signature image can't be read: ${err.message}`);
+      }
+      const position = option(options, 'position', STAMP_POSITIONS, 'bottom-right');
+      const width = integer(options, 'width', 40, 500, 150);
+      const { pages } = await unlockedInfo(file.path);
+      const page = options.page === 'last' || options.page === undefined || options.page === '' ? pages.length : integer(options, 'page', 1, pages.length, pages.length);
+      const shown = pages[page - 1].size;
+      // As wide as asked, but never wider than the page allows.
+      const w = Math.min(width, shown[0] - 2 * STAMP_MARGIN);
+      const h = (w * image.height) / image.width;
+      const [x, y] = placeStamp(position, shown, w, h);
+      const output = path.join(outDir, `${stem(file.name)}-signed.pdf`);
+      await stamp(file.path, output, [{ width: shown[0], height: shown[1], draw: [{ image, box: [x, y, w, h] }] }], { to: String(page), from: '1' }, outDir);
       return { outputs: [output] };
     },
   },

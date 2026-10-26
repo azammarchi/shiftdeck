@@ -37,6 +37,30 @@ function chunk(type, data) {
 
 // An RGB PNG in one colour, with a white band across the top third, so
 // which way up a page is shows in any rendering of it.
+// A signature-like RGBA PNG, as a browser canvas makes them: a thick dark
+// blue diagonal stroke on a transparent background.
+function writeSignaturePng(file, width = 300, height = 100) {
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 4);
+    for (let x = 0; x < width; x++) {
+      const onStroke = Math.abs(y - (x * height) / width) < 6;
+      if (onStroke) row.set([20, 30, 90, 255], 1 + x * 4);
+    }
+    rows.push(row);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 6, 0, 0, 0], 8); // 8 bits, RGBA
+  fs.writeFileSync(file, Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', zlib.deflateSync(Buffer.concat(rows))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]));
+}
+
 function writePng(file, width, height, [r, g, b]) {
   const plain = Buffer.alloc(1 + width * 3);
   const band = Buffer.alloc(1 + width * 3, 255);
@@ -155,6 +179,7 @@ async function makeSampleFiles() {
   const file = (name) => path.join(DIR, name);
   COLORS.forEach((color, i) => writePng(file(`p${i + 1}.png`), 1240, 1754, color));
   writePng(file('landscape.png'), 1754, 1240, COLORS[2]);
+  writeSignaturePng(file('signature.png'));
   if (convertImage(file('p2.png'), file('photo.jpg'), 'jpeg')) addExif(file('photo.jpg'), file('phone-photo.jpg'));
   convertImage(file('p1.png'), file('photo.heic'), 'heic');
   fs.writeFileSync(file('notes.txt'), 'not a PDF\n');
@@ -187,4 +212,21 @@ function imageSize(filePath) {
   throw new Error(`not a PNG or JPEG: ${filePath}`);
 }
 
-module.exports = { makeSampleFiles, sample, hasSample, imageSize, PASSWORD };
+// How many dark pixels (text, ink) a PNG has in a region given as fractions
+// of its size: [left, top, right, bottom], e.g. [0.4, 0.9, 0.6, 1] for the
+// middle of the bottom edge. The sample pages' colours are all lighter.
+function darkPixels(pngPath, [left, top, right, bottom]) {
+  const { width, height, rgb } = require('../lib/png').readPng(fs.readFileSync(pngPath));
+  let count = 0;
+  for (let y = Math.floor(top * height); y < Math.ceil(bottom * height); y++) {
+    for (let x = Math.floor(left * width); x < Math.ceil(right * width); x++) {
+      const i = (y * width + x) * 3;
+      if (0.3 * rgb[i] + 0.59 * rgb[i + 1] + 0.11 * rgb[i + 2] < 60) count++;
+    }
+  }
+  return count;
+}
+
+const signatureDataUrl = () => `data:image/png;base64,${fs.readFileSync(sample('signature.png')).toString('base64')}`;
+
+module.exports = { makeSampleFiles, sample, hasSample, imageSize, darkPixels, signatureDataUrl, PASSWORD };

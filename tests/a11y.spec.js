@@ -16,7 +16,7 @@ async function expectNoViolations(page, view) {
 
 test('axe finds no WCAG 2.1 AA problems on any tool', async ({ page }) => {
   await openApp(page);
-  for (const tool of ['merge', 'split', 'organize', 'pdf-to-images', 'images-to-pdf', 'convert-images', 'rotate', 'protect', 'unlock']) {
+  for (const tool of ['merge', 'split', 'organize', 'pdf-to-images', 'images-to-pdf', 'convert-images', 'page-numbers', 'sign', 'rotate', 'protect', 'unlock']) {
     await pickTool(page, tool);
     await expectNoViolations(page, tool);
   }

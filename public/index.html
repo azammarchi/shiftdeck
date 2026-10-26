@@ -23,6 +23,8 @@
       <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></symbol>
       <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+      <symbol id="i-hash" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/></symbol>
+      <symbol id="i-sign" viewBox="0 0 24 24"><path d="M3 17c3-6 5-9 6-8s-2 7 0 7 4-6 6-6-1 5 1 5 3-2 5-3M3 21h18"/></symbol>
       <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></symbol>
       <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
       <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
@@ -57,6 +59,8 @@
       <label class="tool"><input type="radio" name="tool" value="pdf-to-images"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg><span data-i18n="tool_pdf-to-images"></span></label>
       <label class="tool"><input type="radio" name="tool" value="images-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><span data-i18n="tool_images-to-pdf"></span></label>
       <label class="tool"><input type="radio" name="tool" value="convert-images"><svg class="icon" aria-hidden="true"><use href="#i-convert"/></svg><span data-i18n="tool_convert-images"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="page-numbers"><svg class="icon" aria-hidden="true"><use href="#i-hash"/></svg><span data-i18n="tool_page-numbers"></span></label>
+      <label class="tool"><input type="radio" name="tool" value="sign"><svg class="icon" aria-hidden="true"><use href="#i-sign"/></svg><span data-i18n="tool_sign"></span></label>
       <label class="tool"><input type="radio" name="tool" value="rotate"><svg class="icon" aria-hidden="true"><use href="#i-rotate"/></svg><span data-i18n="tool_rotate"></span></label>
       <label class="tool"><input type="radio" name="tool" value="protect"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="tool_protect"></span></label>
       <label class="tool"><input type="radio" name="tool" value="unlock"><svg class="icon" aria-hidden="true"><use href="#i-unlock"/></svg><span data-i18n="tool_unlock"></span></label>
@@ -147,6 +151,65 @@
         <div class="field" data-for="convert-images">
           <label class="checkbox"><input type="checkbox" id="stripMetadataInput" name="stripMetadata" checked aria-describedby="stripMetadataHint"><span data-i18n="stripMetadata"></span></label>
           <p id="stripMetadataHint" class="muted small" data-i18n="stripMetadataHint"></p>
+        </div>
+
+        <div class="field" data-for="page-numbers">
+          <label for="numberFormatSelect" data-i18n="numberFormat"></label>
+          <select id="numberFormatSelect" name="template"></select>
+        </div>
+        <div class="field" data-for="page-numbers">
+          <label for="numberPositionSelect" data-i18n="position"></label>
+          <select id="numberPositionSelect" name="position">
+            <option value="bottom-center" data-i18n="pos_bottom-center"></option>
+            <option value="bottom-right" data-i18n="pos_bottom-right"></option>
+            <option value="bottom-left" data-i18n="pos_bottom-left"></option>
+            <option value="top-center" data-i18n="pos_top-center"></option>
+            <option value="top-right" data-i18n="pos_top-right"></option>
+            <option value="top-left" data-i18n="pos_top-left"></option>
+          </select>
+        </div>
+        <div class="field" data-for="page-numbers">
+          <label for="numberStartInput" data-i18n="numberStart"></label>
+          <input id="numberStartInput" name="start" type="number" min="0" max="100000" step="1" value="1">
+        </div>
+        <div class="field" data-for="page-numbers">
+          <label for="numberSizeInput" data-i18n="textSize"></label>
+          <input id="numberSizeInput" name="size" type="number" min="6" max="48" step="1" value="11">
+        </div>
+        <div class="field" data-for="page-numbers">
+          <label class="checkbox"><input type="checkbox" id="skipFirstInput" name="skipFirst"><span data-i18n="skipFirst"></span></label>
+        </div>
+
+        <div class="field" data-for="sign">
+          <div class="files-header">
+            <span class="field-label" id="signatureLabel" data-i18n="signatureLabel"></span>
+            <button type="button" id="clearSignatureButton" class="link-button"><span data-i18n="signatureClear"></span></button>
+          </div>
+          <canvas id="signaturePad" class="signature-pad" role="img" aria-labelledby="signatureLabel" aria-describedby="signatureHint"></canvas>
+          <p id="signatureHint" class="muted small" data-i18n="signatureHint"></p>
+          <label for="typedNameInput" data-i18n="typeName"></label>
+          <input id="typedNameInput" type="text" autocomplete="name" maxlength="60">
+        </div>
+        <div class="field" data-for="sign">
+          <label for="signPageInput" data-i18n="signPage"></label>
+          <input id="signPageInput" name="page" type="number" min="1" step="1" aria-describedby="signPageHint">
+          <p id="signPageHint" class="muted small" data-i18n="signPageHint"></p>
+        </div>
+        <div class="field" data-for="sign">
+          <label for="signPositionSelect" data-i18n="position"></label>
+          <select id="signPositionSelect" name="position">
+            <option value="bottom-right" data-i18n="pos_bottom-right"></option>
+            <option value="bottom-center" data-i18n="pos_bottom-center"></option>
+            <option value="bottom-left" data-i18n="pos_bottom-left"></option>
+            <option value="top-right" data-i18n="pos_top-right"></option>
+            <option value="top-center" data-i18n="pos_top-center"></option>
+            <option value="top-left" data-i18n="pos_top-left"></option>
+          </select>
+        </div>
+        <div class="field" data-for="sign">
+          <label for="signWidthInput" data-i18n="signWidth"></label>
+          <input id="signWidthInput" name="width" type="number" min="40" max="500" step="1" value="150" aria-describedby="signWidthHint">
+          <p id="signWidthHint" class="muted small" data-i18n="signWidthHint"></p>
         </div>
 
         <div class="field" data-for="rotate">

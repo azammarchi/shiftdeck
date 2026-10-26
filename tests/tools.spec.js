@@ -5,7 +5,7 @@ const { test, expect } = require('./fixtures');
 const { openApp, pickTool, addFiles, fileNames, resultNames, convert, download } = require('./helpers');
 const { info, engines } = require('../engines');
 const { readZip } = require('../lib/zip');
-const { PASSWORD } = require('./sample-files');
+const { PASSWORD, darkPixels } = require('./sample-files');
 
 test.beforeEach(async ({ page }) => openApp(page));
 
@@ -156,6 +156,58 @@ test('organize pages works on one PDF, and keeps at least one page', async ({ pa
   await addFiles(page, ['two-pages.pdf', 'mixed.pdf']);
   await convert(page);
   await expect(page.locator('#status')).toHaveText('This tool works on one PDF at a time: remove the others.');
+});
+
+// Which pages of a PDF have dark marks in a region (see darkPixels).
+async function marks(file, region) {
+  const { runTool } = require('../engines');
+  const { outputs } = await runTool('pdf-to-images', [{ path: file, name: 'check.pdf' }], { format: 'png', dpi: 50 }, test.info().outputPath('render'));
+  return outputs.map((png) => darkPixels(png, region) > 0);
+}
+
+test.describe('page numbers and signatures', () => {
+  test.skip(() => !engines().qpdf, 'qpdf is not installed');
+
+  test('number the pages of a PDF, "Page 1 of 2" at the bottom', async ({ page }) => {
+    await pickTool(page, 'page-numbers');
+    await addFiles(page, ['two-pages.pdf']);
+    await page.locator('#numberFormatSelect').selectOption({ label: 'Page 1 of 12' });
+    await convert(page);
+    const file = await download(page, 'two-pages-numbered.pdf');
+    expect(await marks(file, [0.35, 0.88, 0.65, 1])).toEqual([true, true]);
+  });
+
+  test('sign the last page with a signature drawn with the mouse', async ({ page }) => {
+    await pickTool(page, 'sign');
+    await addFiles(page, ['mixed.pdf']);
+    await convert(page);
+    await expect(page.locator('#status')).toHaveText('Draw your signature, or type your name, first.');
+
+    const box = await page.locator('#signaturePad').boundingBox();
+    await page.mouse.move(box.x + 40, box.y + box.height * 0.7);
+    await page.mouse.down();
+    for (let i = 1; i <= 20; i++) await page.mouse.move(box.x + 40 + i * 15, box.y + box.height * (0.7 - 0.4 * Math.sin(i / 3)));
+    await page.mouse.up();
+    await convert(page);
+    const file = await download(page, 'mixed-signed.pdf');
+    expect(await marks(file, [0.55, 0.7, 1, 1])).toEqual([false, false, true]);
+  });
+
+  test('sign by typing your name, from the keyboard', async ({ page }) => {
+    await pickTool(page, 'sign');
+    await addFiles(page, ['two-pages.pdf']);
+    await page.getByLabel('Or type your name').fill('Ada Lovelace');
+    await page.getByLabel('Page', { exact: true }).fill('1');
+    await page.locator('#signPositionSelect').selectOption('top-left');
+    await convert(page);
+    const file = await download(page, 'two-pages-signed.pdf');
+    expect(await marks(file, [0, 0, 0.5, 0.25])).toEqual([true, false]);
+
+    await page.locator('#clearSignatureButton').click();
+    await expect(page.getByLabel('Or type your name')).toHaveValue('');
+    await convert(page);
+    await expect(page.locator('#status')).toHaveText('Draw your signature, or type your name, first.');
+  });
 });
 
 test.describe('converting images', () => {
