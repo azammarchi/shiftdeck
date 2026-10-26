@@ -68,8 +68,10 @@ main {
 
 /* Tool picker: real radio buttons, so arrows, Tab and screen readers work
    as usual; the label around each one is the visible card. */
-.tools { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
-.tools legend { padding: 0 0 8px; color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.tools { display: flex; flex-direction: column; gap: 14px; }
+.tools-heading { margin: 0; font-size: 15px; }
+.tool-group { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 4px; }
+.tool-group legend { padding: 0 0 6px; color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .tool {
   position: relative;
   display: flex;

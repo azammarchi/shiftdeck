@@ -57,25 +57,31 @@
   <p id="demoNotice" class="notice info demo-notice" hidden><span data-i18n="demoNotice"></span> <a href="https://github.com/azammarchi/shiftdeck#quick-start" data-i18n="demoInstallLink"></a></p>
 
   <main>
-    <fieldset class="tools">
-      <legend data-i18n="toolsHeading"></legend>
-      <label class="tool"><input type="radio" name="tool" value="merge" checked><svg class="icon" aria-hidden="true"><use href="#i-merge"/></svg><span data-i18n="tool_merge"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="split"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span data-i18n="tool_split"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="convert-audio"><svg class="icon" aria-hidden="true"><use href="#i-audio"/></svg><span data-i18n="tool_convert-audio"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="convert-video"><svg class="icon" aria-hidden="true"><use href="#i-video"/></svg><span data-i18n="tool_convert-video"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="organize"><svg class="icon" aria-hidden="true"><use href="#i-organize"/></svg><span data-i18n="tool_organize"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="pdf-to-images"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg><span data-i18n="tool_pdf-to-images"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="images-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><span data-i18n="tool_images-to-pdf"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="documents-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-document"/></svg><span data-i18n="tool_documents-to-pdf"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="convert-images"><svg class="icon" aria-hidden="true"><use href="#i-convert"/></svg><span data-i18n="tool_convert-images"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="page-numbers"><svg class="icon" aria-hidden="true"><use href="#i-hash"/></svg><span data-i18n="tool_page-numbers"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="sign"><svg class="icon" aria-hidden="true"><use href="#i-sign"/></svg><span data-i18n="tool_sign"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="watermark"><svg class="icon" aria-hidden="true"><use href="#i-stamp"/></svg><span data-i18n="tool_watermark"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="compress"><svg class="icon" aria-hidden="true"><use href="#i-compress"/></svg><span data-i18n="tool_compress"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="rotate"><svg class="icon" aria-hidden="true"><use href="#i-rotate"/></svg><span data-i18n="tool_rotate"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="protect"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="tool_protect"></span></label>
-      <label class="tool"><input type="radio" name="tool" value="unlock"><svg class="icon" aria-hidden="true"><use href="#i-unlock"/></svg><span data-i18n="tool_unlock"></span></label>
-    </fieldset>
+    <div class="tools">
+      <h2 class="tools-heading" id="toolsHeading" data-i18n="toolsHeading"></h2>
+      <fieldset class="tool-group">
+        <legend data-i18n="groupPdf"></legend>
+        <label class="tool"><input type="radio" name="tool" value="merge" checked><svg class="icon" aria-hidden="true"><use href="#i-merge"/></svg><span data-i18n="tool_merge"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="split"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg><span data-i18n="tool_split"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="organize"><svg class="icon" aria-hidden="true"><use href="#i-organize"/></svg><span data-i18n="tool_organize"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="compress"><svg class="icon" aria-hidden="true"><use href="#i-compress"/></svg><span data-i18n="tool_compress"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="page-numbers"><svg class="icon" aria-hidden="true"><use href="#i-hash"/></svg><span data-i18n="tool_page-numbers"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="watermark"><svg class="icon" aria-hidden="true"><use href="#i-stamp"/></svg><span data-i18n="tool_watermark"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="sign"><svg class="icon" aria-hidden="true"><use href="#i-sign"/></svg><span data-i18n="tool_sign"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="rotate"><svg class="icon" aria-hidden="true"><use href="#i-rotate"/></svg><span data-i18n="tool_rotate"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="protect"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="tool_protect"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="unlock"><svg class="icon" aria-hidden="true"><use href="#i-unlock"/></svg><span data-i18n="tool_unlock"></span></label>
+      </fieldset>
+      <fieldset class="tool-group">
+        <legend data-i18n="groupConvert"></legend>
+        <label class="tool"><input type="radio" name="tool" value="convert-images"><svg class="icon" aria-hidden="true"><use href="#i-convert"/></svg><span data-i18n="tool_convert-images"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="images-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><span data-i18n="tool_images-to-pdf"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="documents-to-pdf"><svg class="icon" aria-hidden="true"><use href="#i-document"/></svg><span data-i18n="tool_documents-to-pdf"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="pdf-to-images"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg><span data-i18n="tool_pdf-to-images"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="convert-audio"><svg class="icon" aria-hidden="true"><use href="#i-audio"/></svg><span data-i18n="tool_convert-audio"></span></label>
+        <label class="tool"><input type="radio" name="tool" value="convert-video"><svg class="icon" aria-hidden="true"><use href="#i-video"/></svg><span data-i18n="tool_convert-video"></span></label>
+      </fieldset>
+    </div>
 
     <section class="workspace" aria-labelledby="toolTitle">
       <h2 id="toolTitle"></h2>

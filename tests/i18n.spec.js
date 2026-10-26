@@ -23,7 +23,7 @@ test('switching to Italian translates the page and is remembered', async ({ page
 
   await page.reload();
   await expect(page.locator('#runLabel')).toHaveText('Converti');
-  await expect(page.locator('legend')).toHaveText('Scegli uno strumento');
+  await expect(page.locator('#toolsHeading')).toHaveText('Scegli uno strumento');
 });
 
 test('counts use the right plural in each language', async ({ page }) => {
