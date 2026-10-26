@@ -1,7 +1,7 @@
-# Runs the engine tests and the end-to-end tests on every push and pull
-# request. The converters are the Mac's own, so this runs on macOS. qpdf is
-# installed so the AES-256 path is tested; the tests also hide it to check the
-# PDFKit fallback.
+# Runs the engine tests and the end-to-end tests on macOS, Linux and Windows,
+# on every push and pull request. Each machine installs its engines with
+# `npm run setup`, so the installer is tested too. On macOS `--all` also
+# installs the cross-platform engines, so both engine sets are tested there.
 name: CI
 
 on:
@@ -19,9 +19,30 @@ concurrency:
 
 jobs:
   test:
-    name: Tests (macOS; WebKit, Firefox, Chromium)
-    runs-on: macos-latest
-    timeout-minutes: 20
+    name: Tests (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            setup: npm run setup -- --all
+            browsers: ~/Library/Caches/ms-playwright
+            install-browsers: npx playwright install webkit firefox chromium
+          - name: Linux
+            os: ubuntu-latest
+            setup: npm run setup
+            browsers: ~/.cache/ms-playwright
+            install-browsers: npx playwright install --with-deps webkit firefox chromium
+          - name: Windows
+            os: windows-latest
+            setup: npm run setup
+            browsers: ~\AppData\Local\ms-playwright
+            install-browsers: npx playwright install webkit firefox chromium
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,10 +50,8 @@ jobs:
           node-version: lts/*
           cache: npm
       - run: npm ci
-      - name: Install qpdf
-        run: brew install qpdf
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: '1'
+      - name: Install engines
+        run: ${{ matrix.setup }}
       - name: Engine tests
         run: npm run test:engines
       # The browsers are cached between runs, keyed by the Playwright version in
@@ -40,18 +59,22 @@ jobs:
       - id: playwright-cache
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/ms-playwright
+          path: ${{ matrix.browsers }}
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install webkit firefox chromium
+        run: ${{ matrix.install-browsers }}
+        timeout-minutes: 10
+      - name: Install browser system libraries
+        if: runner.os == 'Linux' && steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps webkit firefox chromium
         timeout-minutes: 5
       - name: End-to-end tests
         run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           path: |
             playwright-report/
             test-results/
