@@ -28,6 +28,9 @@ const DOWNLOAD_TYPES = {
   '.pdf': 'application/pdf',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.tiff': 'image/tiff',
+  '.heic': 'image/heic',
 };
 
 // The temporary folder goes away with the server, however it stops.
@@ -206,7 +209,7 @@ async function sendBundle(res, id) {
   res.end();
 }
 
-// GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs } } }
+// GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs, ...details } } }
 // PUT    /api/uploads?name=…   ← file bytes → { id, name, size }
 // DELETE /api/uploads/:id
 // POST   /api/tools/:tool      ← { files: [upload ids], options } → { outputs: [{ id, name, size }], bundle: { id, name } | null, warnings }
@@ -217,7 +220,10 @@ async function handleApi(req, res, url) {
   if (extra) return sendError(res, 404, 'notFound', 'Not found');
 
   if (section === 'status' && !id && req.method === 'GET') {
-    const tools = Object.fromEntries(Object.entries(TOOLS).map(([name, tool]) => [name, { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1, needs: tool.needs() }]));
+    const tools = {};
+    for (const [name, tool] of Object.entries(TOOLS)) {
+      tools[name] = { accepts: tool.accepts, mode: tool.mode, minFiles: tool.minFiles || 1, needs: tool.needs(), ...(tool.details ? await tool.details() : {}) };
+    }
     return sendJson(res, 200, { engines: engines(), tools });
   }
   if (section === 'uploads' && !id && req.method === 'PUT') return receiveUpload(req, res, url);

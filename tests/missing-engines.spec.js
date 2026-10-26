@@ -12,6 +12,9 @@ test.describe('with no engines installed', () => {
     await expect(page.locator('#missingNotice')).toContainText('npm run setup');
     await expect(page.locator('#runButton')).toBeDisabled();
 
+    await pickTool(page, 'convert-images');
+    await expect(page.locator('#missingNotice')).toContainText('imagemagick');
+
     await pickTool(page, 'pdf-to-images');
     await expect(page.locator('#missingNotice')).toContainText(/qpdf, mutool,? and imagemagick/);
   });

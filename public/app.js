@@ -70,9 +70,31 @@ function selectTool(name) {
   $('weakNotice').hidden = name !== 'protect' || state.engines.qpdf !== false || !state.engines.pdfkit;
   $('strongNotice').hidden = name !== 'protect' || !state.engines.qpdf;
   $('optionsHeading').hidden = visibleFields === 0;
+  if (name === 'convert-images') updateImageOptions();
   $('results').hidden = true;
   setStatus('');
   renderFiles();
+}
+
+// Convert images: only the formats this computer can write are offered, and
+// quality only matters for the lossy ones.
+const LOSSY_FORMATS = ['jpeg', 'webp', 'heic'];
+
+function updateImageOptions() {
+  const writable = state.tools['convert-images']?.formats || [];
+  const select = $('imageFormatSelect');
+  const unavailable = [];
+  for (const option of select.options) {
+    option.disabled = !writable.includes(option.value);
+    if (option.disabled) unavailable.push(option.textContent);
+  }
+  if (select.selectedOptions[0]?.disabled) {
+    const first = [...select.options].find((option) => !option.disabled);
+    if (first) select.value = first.value;
+  }
+  $('formatsHint').textContent = t('formatsUnavailable', { formats: new Intl.ListFormat(currentLanguage).format(unavailable) });
+  $('formatsHint').hidden = unavailable.length === 0 || writable.length === 0;
+  $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +212,11 @@ function readOptions() {
   const options = {};
   for (const el of form.querySelectorAll('[data-for] [name]')) {
     if (el.closest('[data-for]').hidden) continue;
-    options[el.name] = el.type === 'number' ? Number(el.value) : el.value;
+    if (el.type === 'checkbox') options[el.name] = el.checked;
+    else if (el.type === 'number') {
+      // An empty number field means "not set" (for example, keep the size).
+      if (el.value !== '') options[el.name] = Number(el.value);
+    } else options[el.name] = el.value;
   }
   return options;
 }
@@ -348,6 +374,7 @@ async function init() {
     for (const file of [...state.files]) removeFile(file.key);
     $('chooseButton').focus();
   });
+  $('imageFormatSelect').addEventListener('change', updateImageOptions);
   $('showPassword').addEventListener('change', (e) => {
     $('passwordInput').type = e.target.checked ? 'text' : 'password';
   });

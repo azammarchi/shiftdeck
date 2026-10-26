@@ -64,4 +64,54 @@ async function toJpeg(input, output, quality = 85) {
   if (code !== 0) throw new ToolError('failed', stderr.trim());
 }
 
-module.exports = { available: () => !!programs(), pixels, describe, toJpeg };
+// Which of the formats Shiftdeck offers this ImageMagick can write: HEIC and
+// WebP depend on how it was built. Asked once per ImageMagick program.
+const FORMAT_NAMES = { jpeg: 'JPEG', png: 'PNG', webp: 'WEBP', tiff: 'TIFF', heic: 'HEIC' };
+const writableCache = new Map();
+
+async function writableFormats() {
+  const found = programs();
+  if (!found) return [];
+  const key = found.convert.join(' ');
+  if (!writableCache.has(key)) {
+    writableCache.set(key, run('convert', ['-list', 'format']).then(({ stdout }) => {
+      // Lines look like "     WEBP* WEBP      rw+   WebP Image Format".
+      const modes = {};
+      for (const line of stdout.split('\n')) {
+        const match = /^\s*([A-Z0-9-]+)\*?\s+\S+\s+([r-])([w-])([+-])/.exec(line);
+        if (match) modes[match[1]] = match[3] === 'w';
+      }
+      return Object.keys(FORMAT_NAMES).filter((format) => modes[FORMAT_NAMES[format]]);
+    }));
+  }
+  return writableCache.get(key);
+}
+
+// Converts one image: turned upright from its EXIF orientation, optionally
+// shrunk so its longest side is at most `maxSize` (never enlarged), and
+// optionally without metadata. Removing metadata drops EXIF (location,
+// camera, date), XMP, IPTC and comments, but keeps the colour profile, so
+// colours don't change.
+async function convert(input, output, { quality, maxSize, stripMetadata }) {
+  const args = [`${input}[0]`, '-auto-orient'];
+  if (maxSize) args.push('-resize', `${maxSize}x${maxSize}>`);
+  if (stripMetadata) args.push('+profile', '!icc,*', '-set', 'comment', '');
+  if (quality) args.push('-quality', String(quality));
+  args.push(output);
+  const { code, stderr } = await run('convert', args);
+  if (code !== 0) {
+    if (/no decode delegate|improper image header|not recognized|unable to open image/i.test(stderr)) {
+      throw new ToolError('notImage', `not an image this computer can read: ${stderr.trim()}`);
+    }
+    throw new ToolError('failed', stderr.trim());
+  }
+}
+
+// Format, size and metadata of an image, as ImageMagick sees it (for tests).
+async function identify(input, format) {
+  const { code, stdout, stderr } = await run('identify', ['-format', format, `${input}[0]`]);
+  if (code !== 0) throw new ToolError('notImage', stderr.trim());
+  return stdout;
+}
+
+module.exports = { available: () => !!programs(), pixels, describe, toJpeg, writableFormats, convert, identify };

@@ -20,6 +20,9 @@ const { pdfkit } = pdfkitEngine;
 const PDF_TYPES = ['.pdf'];
 const IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.heic', '.heif', '.tif', '.tiff', '.gif', '.bmp', '.webp', '.jp2'];
 const DPI_RANGE = [36, 600];
+// Image formats "Convert images" can write, and the extension for each.
+const IMAGE_OUTPUTS = { jpeg: 'jpg', png: 'png', webp: 'webp', tiff: 'tiff', heic: 'heic' };
+const LOSSY = ['jpeg', 'webp', 'heic'];
 // Page sizes in points (1/72 inch).
 const PAGE_SIZES = { a4: [595, 842], letter: [612, 792] };
 
@@ -44,6 +47,15 @@ function stem(name) {
 function option(options, key, allowed, fallback) {
   const value = options[key] ?? fallback;
   if (!allowed.includes(value)) throw new ToolError('badOption', `${key} must be one of ${allowed.join(', ')}`);
+  return value;
+}
+
+// A whole number in [min, max], or `fallback` when the option is left empty.
+function integer(options, key, min, max, fallback) {
+  const raw = options[key];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) throw new ToolError('badOption', `${key} must be a whole number from ${min} to ${max}`);
   return value;
 }
 
@@ -177,6 +189,28 @@ const TOOLS = {
           yield { ...placeImage(image.width, image.height, pageSize), image };
         }
       })());
+      return { outputs: [output] };
+    },
+  },
+
+  'convert-images': {
+    accepts: IMAGE_TYPES,
+    mode: 'each',
+    needs: () => missing('imagemagick'),
+    // The formats this computer's ImageMagick can write, for the app to offer.
+    async details() {
+      return { formats: imagemagick.available() ? await imagemagick.writableFormats() : [] };
+    },
+    async run(file, options, outDir) {
+      const format = option(options, 'format', Object.keys(IMAGE_OUTPUTS), 'jpeg');
+      if (!(await imagemagick.writableFormats()).includes(format)) {
+        throw new ToolError('formatUnavailable', `this computer's ImageMagick can't write ${format.toUpperCase()}`);
+      }
+      const quality = LOSSY.includes(format) ? integer(options, 'quality', 1, 100, 85) : null;
+      const maxSize = integer(options, 'maxSize', 16, 30000, null);
+      const stripMetadata = options.stripMetadata !== false;
+      const output = path.join(outDir, `${stem(file.name)}.${IMAGE_OUTPUTS[format]}`);
+      await imagemagick.convert(file.path, output, { quality, maxSize, stripMetadata });
       return { outputs: [output] };
     },
   },

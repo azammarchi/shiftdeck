@@ -112,6 +112,32 @@ test('files a tool can\'t use are marked, and nothing runs', async ({ page }) =>
   await expect(page.locator('#status')).toHaveText('Add at least 2 files for this tool.');
 });
 
+test.describe('converting images', () => {
+  test.skip(() => !engines().imagemagick, 'ImageMagick is not installed');
+
+  test('turn a phone photo into a smaller, upright JPEG without its location', async ({ page }) => {
+    const imagemagick = require('../engines/imagemagick');
+    await pickTool(page, 'convert-images');
+    await addFiles(page, ['phone-photo.jpg']);
+    await page.locator('#imageFormatSelect').selectOption('jpeg');
+    await page.locator('#qualityInput').fill('80');
+    await page.locator('#maxSizeInput').fill('600');
+    await expect(page.getByLabel('Remove location and other hidden details')).toBeChecked();
+    await convert(page);
+    const file = await download(page, 'phone-photo.jpg');
+    expect(await imagemagick.identify(file, '%m %w %h')).toMatch(/^JPEG 600 4\d\d$/);
+    expect(await imagemagick.identify(file, '%[EXIF:*]')).not.toMatch(/GPS/);
+  });
+
+  test('quality is only asked for formats that lose detail', async ({ page }) => {
+    await pickTool(page, 'convert-images');
+    await page.locator('#imageFormatSelect').selectOption('jpeg');
+    await expect(page.locator('#qualityInput')).toBeVisible();
+    await page.locator('#imageFormatSelect').selectOption('png');
+    await expect(page.locator('#qualityInput')).toBeHidden();
+  });
+});
+
 test.describe('without qpdf, on macOS', () => {
   test.skip(() => !engines().pdfkit, 'only PDFKit can protect a PDF without qpdf');
   test.use({ serverEnv: { SHIFTDECK_DISABLE_ENGINES: 'qpdf' } });

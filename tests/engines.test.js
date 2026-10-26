@@ -213,6 +213,78 @@ for (const mode of MODES) {
   });
 }
 
+describe('Convert images', { skip: !engines().imagemagick && 'ImageMagick is not installed' }, () => {
+  const imagemagick = require('../engines/imagemagick');
+  const convert = async (name, options) => (await run('convert-images', [name], options)).outputs[0];
+  const describeImage = (file) => imagemagick.identify(file, '%m %w %h');
+  const exif = (file) => imagemagick.identify(file, '%[EXIF:*]');
+  let writable;
+  before(async () => {
+    writable = await imagemagick.writableFormats();
+  });
+
+  test('PNG, JPEG, WebP and TIFF keep the image\'s size', async () => {
+    for (const [format, magick, ext] of [['jpeg', 'JPEG', 'jpg'], ['png', 'PNG', 'png'], ['webp', 'WEBP', 'webp'], ['tiff', 'TIFF', 'tiff']]) {
+      if (!writable.includes(format)) continue;
+      const output = await convert('p1.png', { format });
+      assert.equal(path.basename(output), `p1.${ext}`);
+      assert.equal(await describeImage(output), `${magick} 1240 1754`);
+    }
+    assert.ok(writable.includes('jpeg') && writable.includes('png'), `writable: ${writable}`);
+  });
+
+  test('HEIC, where this computer can write it', async (t) => {
+    if (!writable.includes('heic')) return t.skip('ImageMagick here can\'t write HEIC');
+    const output = await convert('p1.png', { format: 'heic', quality: 80 });
+    assert.match(await describeImage(output), /^HEIC 1240 1754$/);
+  });
+
+  test('the longest side shrinks to the size asked, and never grows', async () => {
+    const [, w, h] = (await describeImage(await convert('p1.png', { format: 'png', maxSize: 500 }))).split(' ').map(Number);
+    assert.equal(h, 500);
+    assert.ok(Math.abs(w - 353.5) <= 1, `width ${w}`);
+    assert.equal(await describeImage(await convert('p1.png', { format: 'png', maxSize: 5000 })), 'PNG 1240 1754');
+  });
+
+  test('phone photos come out upright, without their location or camera', { skip: !hasSample('phone-photo.jpg') && 'no JPEG sample' }, async () => {
+    const before = await exif(sample('phone-photo.jpg'));
+    assert.match(before, /GPSLatitude/);
+    assert.match(before, /ShiftdeckCam/);
+    const output = await convert('phone-photo.jpg', { format: 'jpeg' });
+    assert.equal(await describeImage(output), 'JPEG 1754 1240'); // turned upright
+    const after = await exif(output);
+    assert.doesNotMatch(after, /GPS/);
+    assert.doesNotMatch(after, /ShiftdeckCam/);
+  });
+
+  test('keeping the details keeps the location, still upright', { skip: !hasSample('phone-photo.jpg') && 'no JPEG sample' }, async () => {
+    const output = await convert('phone-photo.jpg', { format: 'jpeg', stripMetadata: false });
+    assert.equal(await describeImage(output), 'JPEG 1754 1240');
+    const after = await exif(output);
+    assert.match(after, /GPSLatitude/);
+    assert.match(after, /ShiftdeckCam/);
+    assert.match(await imagemagick.identify(output, '%[orientation]'), /TopLeft|Undefined/);
+  });
+
+  test('lower quality makes smaller JPEGs', async () => {
+    const low = fs.statSync(await convert('p1.png', { format: 'jpeg', quality: 20 })).size;
+    const high = fs.statSync(await convert('p1.png', { format: 'jpeg', quality: 98 })).size;
+    assert.ok(low < high, `${low} < ${high}`);
+  });
+
+  test('wrong options and files are refused', async () => {
+    await rejectsWith(run('convert-images', ['p1.png'], { format: 'jpeg', quality: 0 }), 'badOption');
+    await rejectsWith(run('convert-images', ['p1.png'], { format: 'jpeg', quality: 'abc' }), 'badOption');
+    await rejectsWith(run('convert-images', ['p1.png'], { format: 'png', maxSize: 2.5 }), 'badOption');
+    await rejectsWith(run('convert-images', ['p1.png'], { format: 'gif' }), 'badOption');
+    await rejectsWith(run('convert-images', ['three-pages.pdf'], { format: 'png' }), 'wrongType');
+    const dir = outDir();
+    const fake = path.join(dir, 'fake.png');
+    fs.copyFileSync(sample('notes.txt'), fake);
+    await rejectsWith(runTool('convert-images', [{ path: fake, name: 'fake.png' }], { format: 'jpeg' }, dir), 'notImage');
+  });
+});
+
 test('with no engine at all, tools say what to install', () => withEnv(['pdfkit', 'qpdf', 'mutool', 'imagemagick'], async () => {
   await rejectsWith(run('merge', ['three-pages.pdf', 'two-pages.pdf']), 'noEngine');
   await rejectsWith(run('images-to-pdf', ['p1.png']), 'noEngine');

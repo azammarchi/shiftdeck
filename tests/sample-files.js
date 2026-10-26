@@ -55,6 +55,72 @@ function writePng(file, width, height, [r, g, b]) {
   ]));
 }
 
+// An EXIF block like a phone camera writes: the camera model, an orientation
+// (6 = turned 90° clockwise, as from a phone held upright) and a GPS position
+// (45°N 9°E), as a little-endian TIFF structure.
+function exifSegment() {
+  const entry = (tag, type, count, value) => {
+    const b = Buffer.alloc(12);
+    b.writeUInt16LE(tag, 0);
+    b.writeUInt16LE(type, 2);
+    b.writeUInt32LE(count, 4);
+    if (Buffer.isBuffer(value)) value.copy(b, 8);
+    else b.writeUInt32LE(value, 8);
+    return b;
+  };
+  const ASCII = 2, SHORT = 3, LONG = 4, RATIONAL = 5;
+  // 13 bytes of text plus one of padding: TIFF offsets must be even.
+  const makeText = 'ShiftdeckCam\0';
+  const make = Buffer.concat([Buffer.from(makeText, 'latin1'), Buffer.alloc(makeText.length % 2)]);
+  const rationals = (...pairs) => {
+    const b = Buffer.alloc(pairs.length * 8);
+    pairs.forEach(([n, d], i) => {
+      b.writeUInt32LE(n, i * 8);
+      b.writeUInt32LE(d, i * 8 + 4);
+    });
+    return b;
+  };
+  // Layout: header (8), IFD0 (3 entries), Make text, GPS IFD (4 entries), coordinates.
+  const ifd0At = 8;
+  const makeAt = ifd0At + 2 + 3 * 12 + 4;
+  const gpsAt = makeAt + make.length;
+  const latAt = gpsAt + 2 + 4 * 12 + 4;
+  const lonAt = latAt + 24;
+  const orientation = Buffer.alloc(4);
+  orientation.writeUInt16LE(6, 0);
+  const ifd0 = Buffer.concat([
+    Buffer.from([3, 0]),
+    entry(0x010f, ASCII, makeText.length, makeAt), // Make
+    entry(0x0112, SHORT, 1, orientation), // Orientation
+    entry(0x8825, LONG, 1, gpsAt), // GPS IFD
+    Buffer.alloc(4),
+  ]);
+  const gps = Buffer.concat([
+    Buffer.from([4, 0]),
+    entry(0x0001, ASCII, 2, Buffer.from('N\0')), // GPSLatitudeRef
+    entry(0x0002, RATIONAL, 3, latAt), // GPSLatitude
+    entry(0x0003, ASCII, 2, Buffer.from('E\0')), // GPSLongitudeRef
+    entry(0x0004, RATIONAL, 3, lonAt), // GPSLongitude
+    Buffer.alloc(4),
+  ]);
+  const tiff = Buffer.concat([
+    Buffer.from([0x49, 0x49, 42, 0, ifd0At, 0, 0, 0]),
+    ifd0, make, gps,
+    rationals([45, 1], [0, 1], [0, 1]),
+    rationals([9, 1], [0, 1], [0, 1]),
+  ]);
+  const body = Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), tiff]);
+  const header = Buffer.from([0xff, 0xe1, 0, 0]);
+  header.writeUInt16BE(body.length + 2, 2);
+  return Buffer.concat([header, body]);
+}
+
+// A copy of a JPEG with exifSegment() right after its start marker.
+function addExif(input, output) {
+  const jpeg = fs.readFileSync(input);
+  fs.writeFileSync(output, Buffer.concat([jpeg.subarray(0, 2), exifSegment(), jpeg.subarray(2)]));
+}
+
 // Converts an image with sips (macOS) or ImageMagick; false if neither can.
 function convertImage(input, output, format) {
   try {
@@ -77,7 +143,7 @@ async function makeSampleFiles() {
   const file = (name) => path.join(DIR, name);
   COLORS.forEach((color, i) => writePng(file(`p${i + 1}.png`), 1240, 1754, color));
   writePng(file('landscape.png'), 1754, 1240, COLORS[2]);
-  convertImage(file('p2.png'), file('photo.jpg'), 'jpeg');
+  if (convertImage(file('p2.png'), file('photo.jpg'), 'jpeg')) addExif(file('photo.jpg'), file('phone-photo.jpg'));
   convertImage(file('p1.png'), file('photo.heic'), 'heic');
   fs.writeFileSync(file('notes.txt'), 'not a PDF\n');
 
