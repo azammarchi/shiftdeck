@@ -252,6 +252,7 @@ async function sendBundle(res, id) {
   res.end();
 }
 
+// GET    /api/opened           → { files: [{ id, name, size }] } the app was opened with, once
 // GET    /api/status           → { engines, tools: { name: { accepts, mode, minFiles, needs, ...details } } }
 // PUT    /api/uploads?name=…   ← file bytes → { id, name, size }
 // DELETE /api/uploads/:id
@@ -266,6 +267,11 @@ async function handleApi(req, res, url) {
   if (section === 'uploads' && ID_PATTERN.test(id || '') && extra === 'pages' && !more && req.method === 'GET') return sendPages(res, id);
   if (extra) return sendError(res, 404, 'notFound', 'Not found');
 
+  if (section === 'opened' && !id && req.method === 'GET') {
+    const files = opened;
+    opened = [];
+    return sendJson(res, 200, { files });
+  }
   if (section === 'status' && !id && req.method === 'GET') {
     const tools = {};
     for (const [name, tool] of Object.entries(TOOLS)) {
@@ -371,7 +377,38 @@ function listen(port, attemptsLeft) {
   server.listen(port, '127.0.0.1');
 }
 
-server.on('listening', () => {
+// Files the app was opened with (shiftdeck open, the desktop launchers):
+// copied in as uploads before the browser opens, and handed to the page once.
+let opened = [];
+
+async function registerOpened() {
+  let paths;
+  try {
+    paths = JSON.parse(process.env.SHIFTDECK_OPEN || '[]');
+  } catch {
+    return;
+  }
+  const dir = path.join(WORK_DIR, 'uploads');
+  await fsp.mkdir(dir, { recursive: true });
+  for (const source of Array.isArray(paths) ? paths : []) {
+    try {
+      const stat = await fsp.stat(source);
+      if (!stat.isFile()) continue;
+      const name = path.basename(source);
+      const id = crypto.randomUUID();
+      const file = path.join(dir, id + path.extname(name).toLowerCase().replace(/[^.a-z0-9]/g, ''));
+      await fsp.copyFile(source, file);
+      await fsp.chmod(file, 0o600);
+      uploads.set(id, { path: file, name, size: stat.size });
+      opened.push({ id, name, size: stat.size });
+    } catch (err) {
+      console.error(`Could not open ${source}: ${err.message}`);
+    }
+  }
+}
+
+server.on('listening', async () => {
+  await registerOpened();
   // Some tools ask their engine what it can do (ImageMagick's formats, for
   // one), which takes a moment: ask now, so the app's first request finds the
   // answer ready.

@@ -9,8 +9,9 @@
   "scripts": {
     "setup": "node scripts/setup.js",
     "start": "node server.js",
+    "desktop": "node bin/shiftdeck.js install-desktop",
     "test": "npm run test:engines && npm run test:e2e",
-    "test:engines": "node --test --test-concurrency=1 tests/engines.test.js tests/zip.test.js tests/cli.test.js",
+    "test:engines": "node --test --test-concurrency=1 tests/engines.test.js tests/zip.test.js tests/cli.test.js tests/desktop.test.js",
     "test:e2e": "playwright test",
     "test:install": "playwright install webkit firefox chromium"
   },

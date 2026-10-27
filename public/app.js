@@ -787,6 +787,32 @@ function setUpDragAndDrop() {
   });
 }
 
+// Files the app was opened with, from the file manager or `shiftdeck open`:
+// already on the server, so they only need listing. The tool is the one
+// that suits them: several PDFs are merged, one is organized, images,
+// videos, sounds and documents are converted.
+const TOOLS_FOR_OPENED = ['convert-images', 'convert-video', 'convert-audio', 'documents-to-pdf'];
+
+async function loadOpenedFiles() {
+  if (window.SHIFTDECK_DEMO) return;
+  let files = [];
+  try {
+    files = (await (await fetch('/api/opened')).json()).files || [];
+  } catch {}
+  if (!files.length) return;
+  for (const file of files) {
+    state.files.push({ key: nextKey++, name: file.name, size: file.size, ext: extension(file.name), id: file.id, upload: Promise.resolve(), error: null });
+  }
+  const exts = state.files.map((f) => f.ext);
+  const fits = (tool) => exts.every((ext) => state.tools[tool]?.accepts.includes(ext));
+  const tool = exts.every((ext) => ext === '.pdf') ? (exts.length > 1 ? 'merge' : 'organize') : TOOLS_FOR_OPENED.find(fits);
+  if (tool) {
+    document.querySelector(`input[name="tool"][value="${tool}"]`).checked = true;
+    selectTool(tool);
+  }
+  renderFiles();
+}
+
 async function loadStatus() {
   try {
     const response = await fetch('/api/status');
@@ -855,6 +881,7 @@ async function init() {
   selectTool(document.querySelector('input[name="tool"]:checked').value);
   await loadStatus();
   selectTool(state.tool);
+  await loadOpenedFiles();
 
   // Keeps the local server running while this tab is open (see server.js).
   // The online demo has no server.

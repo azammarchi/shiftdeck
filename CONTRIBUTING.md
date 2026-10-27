@@ -30,7 +30,9 @@ Where things live:
 | `public/locales/<code>.js` | All interface text, one file per language; `en.js` is the reference |
 | `public/demo.js` | The online demo: answers the app's requests inside the browser, for the tools a browser can do alone |
 | `public/style.css` | Styles |
-| `bin/shiftdeck.js` | The `shiftdeck` command: tools from a terminal, and the watched folder |
+| `bin/shiftdeck.js` | The `shiftdeck` command: tools from a terminal, the watched folder, opening the app with files |
+| `lib/desktop.js` | `npm run desktop`: the app launcher and file-manager integration on each system |
+| `desktop/` | The app icon, for the launchers |
 | `server.js` | Tiny local server (no dependencies): uploads, running tools, downloads |
 | `engines/index.js` | The tools: which files they take, their options, which engine runs each one |
 | `engines/pdfkit.js`, `pdfkit.jxa.js` | macOS: PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |

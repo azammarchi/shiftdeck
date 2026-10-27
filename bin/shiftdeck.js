@@ -7,6 +7,9 @@
 //   shiftdeck <tool> [options] files  run a tool, results in --out (default: here)
 //   shiftdeck watch <folder> --tool <tool> [options]
 //                                     convert every file that arrives in <folder>
+//   shiftdeck open files              start the app with files already loaded
+//   shiftdeck install-desktop         launcher and file-manager integration
+//   shiftdeck uninstall-desktop       ...and away again
 //   shiftdeck help                    this text, with each tool's options
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -151,6 +154,10 @@ function help() {
   shiftdeck watch <folder> --tool <tool> [options]
                                      convert every file that arrives in <folder>,
                                      into <folder>/converted unless --out says otherwise
+  shiftdeck open files               start the app with these files already loaded
+  shiftdeck install-desktop          an app to open with a double-click, and a way to
+                                     send files to Shiftdeck from your file manager
+  shiftdeck uninstall-desktop        take them away again
 
 Tools and their options:`);
   for (const [name, options] of Object.entries(OPTIONS)) console.log(`  ${name.padEnd(18)} ${options}`);
@@ -223,6 +230,24 @@ async function main() {
   const [command, ...rest] = process.argv.slice(2);
   if (!command) {
     require('../server');
+    return;
+  }
+  // Starts the app with files already loaded (the desktop launchers use it).
+  if (command === 'open') {
+    const files = rest.filter((arg) => !arg.startsWith('--')).map((file) => path.resolve(file));
+    process.env.SHIFTDECK_OPEN = JSON.stringify(files);
+    require('../server');
+    return;
+  }
+  if (command === 'install-desktop' || command === 'uninstall-desktop') {
+    const desktop = require('../lib/desktop');
+    // npm run desktop -- --remove is the same as uninstall-desktop.
+    const removing = command === 'uninstall-desktop' || rest.includes('--remove');
+    const paths = removing ? desktop.uninstall() : desktop.install();
+    for (const made of paths) console.log(made);
+    console.log(!removing
+      ? '\nShiftdeck is on your desktop: open it like any app, or send files to it from your file manager.'
+      : paths.length ? '\nRemoved.' : 'Nothing to remove.');
     return;
   }
   // An installed ffmpeg only counts once it has been seen to start.

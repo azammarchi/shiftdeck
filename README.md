@@ -61,6 +61,22 @@ npm start
 - ♿ **Accessible**: keyboard-only use, screen reader labels and announcements, WCAG 2.1 AA contrast ([details](ACCESSIBILITY.md))
 - 📦 **No npm dependencies**: plain HTML, CSS and JavaScript, plus well-known open-source converters
 
+## On your desktop
+
+```bash
+npm run desktop
+```
+
+puts Shiftdeck on your desktop, so you can open it like any other app and send files to it from your file manager. They arrive in the app already loaded, with the right tool picked (several PDFs to merge, one to organize, pictures, sound, video and documents to convert):
+
+| | Open Shiftdeck | Send it files |
+| --- | --- | --- |
+| **macOS** | **Shiftdeck** in your Applications folder (Launchpad, Spotlight, the Dock) | right-click → **Open With → Shiftdeck**, or drop them on its icon |
+| **Windows** | **Shiftdeck** in the Start menu | right-click → **Send to → Shiftdeck** |
+| **Linux** | **Shiftdeck** in your applications menu | right-click → **Open With → Shiftdeck**; in Files (Nautilus), **Scripts → Convert with Shiftdeck** |
+
+Everything goes in your own folders, with no administrator rights; `npm run desktop -- --remove` takes it all away. If you move the Shiftdeck folder or reinstall Node, run `npm run desktop` again.
+
 ## Command line and watched folder
 
 Every tool also works from a terminal, with the same engines:
@@ -76,6 +92,7 @@ shiftdeck convert-images --format jpeg --max-size 1600 *.heic
 shiftdeck merge chapter1.pdf chapter2.pdf --out ~/Desktop
 shiftdeck compress --level smallest report.pdf
 shiftdeck watch ~/Downloads/to-convert --tool convert-images --format jpeg
+shiftdeck open scan.pdf photo.heic                 # opens the app with these files loaded
 ```
 
 Results go to the current folder, or to `--out`, and never overwrite a file that's already there. `shiftdeck watch` converts every file that lands in a folder (once it has finished copying) into its `converted` subfolder, until you press Ctrl+C. `shiftdeck help` lists every tool's options.
@@ -126,7 +143,6 @@ npm test
 ## Roadmap
 
 - **Certified digital signatures** (PAdES), with a certificate of your own
-- **Desktop integration**: right-click a file in Finder or Explorer to convert it
 - **Installers** that need no terminal: a Homebrew tap, winget and a Linux package
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
