@@ -185,6 +185,9 @@ async function main() {
     // Homebrew may know an old version whose download is gone (404): update
     // what it knows and try once more.
     if (manager.name === 'brew' && run([manager.program, 'update']) && run(full)) continue;
+    // LibreOffice's newest release sometimes vanishes before Homebrew catches
+    // up; its "still" release is the stable one, and does the same job.
+    if (manager.name === 'brew' && command.includes('libreoffice') && run([manager.program, 'install', '--cask', 'libreoffice-still'])) continue;
     ok = false;
   }
   if (dryRun) return;

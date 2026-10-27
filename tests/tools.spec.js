@@ -240,9 +240,11 @@ test.describe('OCR', () => {
 
   test('read the text of a scan, with the languages picked', async ({ page }) => {
     await pickTool(page, 'ocr');
-    await expect(page.getByLabel('English')).toBeChecked();
-    await expect(page.getByLabel('Italian')).not.toBeChecked();
-    await page.getByLabel('Italian').check();
+    // Among the OCR languages (the language menu has an English too).
+    const languages = page.locator('#ocrLanguages');
+    await expect(languages.getByLabel('English')).toBeChecked();
+    await expect(languages.getByLabel('Italian')).not.toBeChecked();
+    await languages.getByLabel('Italian').check();
     await page.locator('#ocrOutputSelect').selectOption('text');
     await addFiles(page, ['scan.pdf']);
     await convert(page);
