@@ -28,6 +28,15 @@ const MODELS = {
   ara: 'e3206d3dc87fd50c24a0fb9f01838615911d25168f4e64415244b67d2bb3e729',
 };
 
+// Besides the models, Tesseract looks in the same folder for the font it
+// writes a PDF's invisible text with.
+const SUPPORT_FILES = {
+  'pdf.ttf': {
+    url: 'https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/tessdata/pdf.ttf',
+    sha256: 'c7845420925a23d88ed830a63957b8af85a66a8daf8d9fc90e843673b2ef1a59',
+  },
+};
+
 const program = () => findProgram('tesseract');
 
 // The models that are there, in MODELS' order.
@@ -41,12 +50,16 @@ function languages() {
 async function recognize(image, outBase, { langs, format, textOnly = false, dpi = 300, signal }) {
   const file = program();
   if (!file) throw new ToolError('noEngine', 'Tesseract is not installed: run npm run setup');
-  const args = [image, outBase, '--tessdata-dir', TESSDATA, '-l', langs.join('+'), '--dpi', String(dpi)];
+  // The output is asked for with options, not Tesseract's "pdf"/"txt" config
+  // files: those live in its own data folder, not in TESSDATA.
+  const args = [image, outBase, '--tessdata-dir', TESSDATA, '-l', langs.join('+'), '--dpi', String(dpi),
+    '-c', `tessedit_create_pdf=${format === 'pdf' ? 1 : 0}`, '-c', `tessedit_create_txt=${format === 'txt' ? 1 : 0}`];
   if (textOnly) args.push('-c', 'textonly_pdf=1');
-  args.push(format);
   const { code, stderr } = await runProgram(file, args, { signal });
   if (signal?.aborted) throw new ToolError('cancelled', 'cancelled');
-  if (code !== 0) throw new ToolError('failed', stderr.trim().split('\n').pop() || 'Tesseract could not read the page');
+  if (code !== 0 || !fs.existsSync(`${outBase}.${format}`)) {
+    throw new ToolError('failed', stderr.trim().split('\n').pop() || 'Tesseract could not read the page');
+  }
 }
 
-module.exports = { available: () => !!program() && languages().length > 0, languages, recognize, TESSDATA, MODELS, MODELS_URL };
+module.exports = { available: () => !!program() && languages().length > 0, languages, recognize, TESSDATA, MODELS, MODELS_URL, SUPPORT_FILES };

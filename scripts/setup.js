@@ -98,25 +98,29 @@ async function downloadModels() {
   if (!wanted.includes('tesseract')) return true;
   fs.mkdirSync(tesseract.TESSDATA, { recursive: true });
   const sha256 = (data) => crypto.createHash('sha256').update(data).digest('hex');
-  const missing = Object.entries(tesseract.MODELS).filter(([lang, hash]) => {
-    const file = path.join(tesseract.TESSDATA, `${lang}.traineddata`);
+  const wantedFiles = [
+    ...Object.entries(tesseract.MODELS).map(([lang, hash]) => ({ name: `${lang}.traineddata`, url: `${tesseract.MODELS_URL}/${lang}.traineddata`, hash })),
+    ...Object.entries(tesseract.SUPPORT_FILES).map(([name, { url, sha256: hash }]) => ({ name, url, hash })),
+  ];
+  const missing = wantedFiles.filter(({ name, hash }) => {
+    const file = path.join(tesseract.TESSDATA, name);
     return !fs.existsSync(file) || sha256(fs.readFileSync(file)) !== hash;
   });
   if (!missing.length) return true;
-  console.log(`\nDownloading OCR language models (${missing.map(([lang]) => lang).join(', ')}) from ${tesseract.MODELS_URL}...`);
+  console.log(`\nDownloading OCR data from Tesseract's repository: ${missing.map(({ name }) => name).join(', ')}...`);
   if (dryRun) return true;
   let ok = true;
-  for (const [lang, hash] of missing) {
+  for (const { name, url, hash } of missing) {
     try {
-      const response = await fetch(`${tesseract.MODELS_URL}/${lang}.traineddata`);
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = Buffer.from(await response.arrayBuffer());
       if (sha256(data) !== hash) throw new Error('the file is not the expected one (SHA-256 differs)');
-      const file = path.join(tesseract.TESSDATA, `${lang}.traineddata`);
+      const file = path.join(tesseract.TESSDATA, name);
       fs.writeFileSync(`${file}.part`, data);
       fs.renameSync(`${file}.part`, file);
     } catch (err) {
-      console.error(`  ${lang}: ${err.message}`);
+      console.error(`  ${name}: ${err.message}`);
       ok = false;
     }
   }
