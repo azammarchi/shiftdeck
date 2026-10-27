@@ -59,7 +59,7 @@ function selectTool(name) {
   $('toolHint').textContent = t(`tool_${name}_hint`);
   const tool = currentTool();
   $('fileInput').accept = tool.accepts.join(',');
-  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? 'acceptsPdf' : tool.accepts.includes('.mp3') ? 'acceptsAudio' : tool.accepts.includes('.mp4') ? 'acceptsVideo' : tool.accepts.includes('.docx') ? 'acceptsDocuments' : 'acceptsImages');
+  $('acceptsHint').textContent = t(tool.accepts.includes('.pdf') ? (tool.accepts.includes('.png') ? 'acceptsPdfImages' : 'acceptsPdf') : tool.accepts.includes('.mp3') ? 'acceptsAudio' : tool.accepts.includes('.mp4') ? 'acceptsVideo' : tool.accepts.includes('.docx') ? 'acceptsDocuments' : 'acceptsImages');
   let visibleFields = 0;
   for (const el of $('optionsForm').querySelectorAll('[data-for]')) {
     const show = el.dataset.for.split(' ').includes(name);
@@ -79,6 +79,7 @@ function selectTool(name) {
   if (FORMAT_SELECTS[name]) updateFormatOptions(name);
   if (name === 'organize') loadPages();
   if (name === 'page-numbers') updateNumberFormats();
+  if (name === 'ocr') updateOcrLanguages();
   if (name === 'sign') sizeSignaturePad();
   // A sensible watermark to start from, in the app's language.
   if (name === 'watermark' && !$('watermarkTextInput').dataset.edited) $('watermarkTextInput').value = t('watermarkDefault');
@@ -116,6 +117,33 @@ function updateFormatOptions(tool) {
   if (tool === 'convert-images') $('qualityField').hidden = !LOSSY_FORMATS.includes(select.value);
   if (tool === 'convert-audio') $('bitrateField').hidden = ['flac', 'wav'].includes(select.value);
   if (tool === 'convert-video') $('removeAudioField').hidden = select.value === 'gif';
+}
+
+// ---------------------------------------------------------------------------
+// OCR: the languages this computer can read, named in the app's language.
+// The app's own language and English start ticked.
+// ---------------------------------------------------------------------------
+const OCR_LANGUAGES = { eng: 'en', ita: 'it', spa: 'es', fra: 'fr', deu: 'de', por: 'pt', rus: 'ru', chi_sim: 'zh-Hans', jpn: 'ja', kor: 'ko', hin: 'hi', ara: 'ar' };
+
+function updateOcrLanguages() {
+  const box = $('ocrLanguages');
+  const known = state.tools.ocr?.languages || [];
+  const ticked = box.children.length
+    ? new Set([...box.querySelectorAll('input:checked')].map((input) => input.value))
+    : new Set(['eng', ...Object.keys(OCR_LANGUAGES).filter((code) => OCR_LANGUAGES[code].split('-')[0] === currentLanguage)]);
+  const names = new Intl.DisplayNames([currentLanguage], { type: 'language' });
+  box.replaceChildren(...known.map((code) => {
+    const label = document.createElement('label');
+    label.className = 'checkbox';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = code;
+    input.checked = ticked.has(code);
+    const text = document.createElement('span');
+    text.textContent = names.of(OCR_LANGUAGES[code] || code);
+    label.append(input, text);
+    return label;
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -523,6 +551,9 @@ function readOptions() {
       // An empty number field means "not set" (for example, keep the size).
       if (el.value !== '') options[el.name] = Number(el.value);
     } else options[el.name] = el.value;
+  }
+  if (state.tool === 'ocr') {
+    options.languages = [...$('ocrLanguages').querySelectorAll('input:checked')].map((box) => box.value);
   }
   if (state.tool === 'sign') {
     const signature = signatureImage();

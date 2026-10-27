@@ -33,7 +33,7 @@ Where things live:
 | `server.js` | Tiny local server (no dependencies): uploads, running tools, downloads |
 | `engines/index.js` | The tools: which files they take, their options, which engine runs each one |
 | `engines/pdfkit.js`, `pdfkit.jxa.js` | macOS: PDF commands on Apple's PDFKit, run with `osascript -l JavaScript` |
-| `engines/qpdf.js`, `mutool.js`, `imagemagick.js`, `ffmpeg.js`, `libreoffice.js` | The cross-platform engines |
+| `engines/qpdf.js`, `mutool.js`, `imagemagick.js`, `ffmpeg.js`, `libreoffice.js`, `tesseract.js` | The cross-platform engines |
 | `engines/pdfwrite.js` | A tiny PDF writer (one image per page), so images to PDF needs no PDF engine |
 | `engines/run.js` | Finding programs on every system and running them safely |
 | `lib/zip.js` | A tiny ZIP writer, for **Download all** |

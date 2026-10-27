@@ -35,7 +35,7 @@ function extraFolders() {
   const roots = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Programs')].filter(Boolean);
   const folders = [];
   for (const root of roots) {
-    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf|ffmpeg|libreoffice)/i)) folders.push(dir, path.join(dir, 'bin'), path.join(dir, 'program'));
+    for (const dir of subfolders(root, /^(qpdf|imagemagick|mupdf|ffmpeg|libreoffice|tesseract)/i)) folders.push(dir, path.join(dir, 'bin'), path.join(dir, 'program'));
   }
   const winget = process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet');
   if (winget) {

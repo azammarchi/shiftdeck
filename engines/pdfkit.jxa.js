@@ -10,6 +10,7 @@
 //   fromimages <out.pdf> <a4|letter|original> <image>...
 //   rotate     <in.pdf> <out.pdf> <90|180|270>
 //   organize   <in.pdf> <out.pdf> <JSON [[page, turn], ...]>   (1-based pages, in the new order)
+//   text       <in.pdf>                                       (the text of each page)
 //   encrypt    <in.pdf> <out.pdf>
 //   decrypt    <in.pdf> <out.pdf>
 //
@@ -187,6 +188,15 @@ const commands = {
     }
     save(out, output);
     return { outputs: [output] };
+  },
+
+  text(input) {
+    const doc = open(input);
+    const pages = range(0, pageCount(doc) - 1).map((i) => {
+      const text = doc.pageAtIndex(i).string;
+      return text.isNil() ? '' : text.js;
+    });
+    return { pages };
   },
 
   // A new PDF from the pages listed, in that order, each turned by its own

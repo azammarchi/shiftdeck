@@ -14,6 +14,7 @@ const mutool = require('./mutool');
 const imagemagick = require('./imagemagick');
 const ffmpeg = require('./ffmpeg');
 const libreoffice = require('./libreoffice');
+const tesseract = require('./tesseract');
 const { writePdf, jpegFrame, textWidth } = require('./pdfwrite');
 const { readPng } = require('../lib/png');
 const { ToolError } = require('./run');
@@ -26,6 +27,11 @@ const DPI_RANGE = [36, 600];
 // What LibreOffice opens: documents, spreadsheets, presentations, text.
 const DOCUMENT_TYPES = ['.docx', '.doc', '.odt', '.rtf', '.txt', '.html', '.htm', '.md', '.pages', '.wpd',
   '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp', '.key'];
+
+// Pictures Tesseract reads by itself; other image types go through
+// ImageMagick first.
+const OCR_IMAGE_TYPES = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'];
+const OCR_DPI = 300;
 
 const AUDIO_TYPES = ['.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg', '.oga', '.opus', '.aif', '.aiff', '.wma', '.caf'];
 const VIDEO_TYPES = ['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.avi', '.wmv', '.flv', '.mpg', '.mpeg', '.3gp'];
@@ -57,7 +63,7 @@ const LOSSY = ['jpeg', 'webp', 'heic'];
 const PAGE_SIZES = { a4: [595, 842], letter: [612, 792] };
 
 function engines() {
-  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available(), ffmpeg: ffmpeg.available(), libreoffice: libreoffice.available() };
+  return { pdfkit: pdfkitEngine.available(), qpdf: qpdf.available(), mutool: mutool.available(), imagemagick: imagemagick.available(), ffmpeg: ffmpeg.available(), libreoffice: libreoffice.available(), tesseract: tesseract.available() };
 }
 
 const native = () => pdfkitEngine.available();
@@ -405,6 +411,69 @@ const TOOLS = {
         return { outputs: [output], warnings: ['notSmaller'] };
       }
       return { outputs: [output], saved: before.size - after.size };
+    },
+  },
+
+  ocr: {
+    accepts: [...PDF_TYPES, ...IMAGE_TYPES],
+    mode: 'each',
+    needs: () => {
+      const absent = missing('tesseract', 'qpdf');
+      return native() ? absent : [...absent, ...missing('mutool')];
+    },
+    async details() {
+      return { languages: tesseract.languages() };
+    },
+    async run(file, options, outDir, { onProgress, signal } = {}) {
+      const output = option(options, 'output', ['pdf', 'text'], 'pdf');
+      const known = tesseract.languages();
+      const asked = Array.isArray(options.languages) ? options.languages : typeof options.languages === 'string' ? options.languages.split(/[+,\s]+/) : ['eng'];
+      const langs = asked.filter(Boolean);
+      if (!langs.length || langs.some((lang) => !known.includes(lang))) throw new ToolError('badOption', `languages must be among ${known.join(', ')}`);
+      const work = await fsp.mkdtemp(path.join(outDir, 'ocr-'));
+      try {
+        const isPdf = path.extname(file.name).toLowerCase() === '.pdf';
+        // Pictures of the pages: rendered from a PDF, or the image itself.
+        let pictures;
+        if (isPdf) {
+          await unlockedInfo(file.path);
+          pictures = native()
+            ? (await pdfkit('toimages', [file.path, work, 'scan', 'png', OCR_DPI])).outputs
+            : await mutool.renderPages(file.path, work, 'scan', OCR_DPI);
+        } else if (OCR_IMAGE_TYPES.includes(path.extname(file.name).toLowerCase())) {
+          pictures = [file.path];
+        } else {
+          if (!imagemagick.available()) throw new ToolError('noEngine', `${file.name} needs ImageMagick to be read: run npm run setup`);
+          const png = path.join(work, 'picture.png');
+          await imagemagick.convert(file.path, png, { stripMetadata: false });
+          pictures = [png];
+        }
+        const results = [];
+        for (const [i, picture] of pictures.entries()) {
+          const base = path.join(work, `page-${i + 1}`);
+          // From a PDF: only the invisible text, to lay over the original.
+          await tesseract.recognize(picture, base, { langs, format: output === 'text' ? 'txt' : 'pdf', textOnly: isPdf && output === 'pdf', dpi: isPdf ? OCR_DPI : undefined, signal });
+          results.push(`${base}.${output === 'text' ? 'txt' : 'pdf'}`);
+          onProgress?.((i + 1) / pictures.length);
+        }
+        if (output === 'text') {
+          const text = (await Promise.all(results.map((r) => fsp.readFile(r, 'utf8')))).map((t) => t.trim()).join('\n\n\f');
+          const target = path.join(outDir, `${stem(file.name)}.txt`);
+          await fsp.writeFile(target, `${text}\n`);
+          return { outputs: [target] };
+        }
+        const target = path.join(outDir, `${stem(file.name)}-searchable.pdf`);
+        if (!isPdf) {
+          await fsp.rename(results[0], target);
+          return { outputs: [target] };
+        }
+        const layer = path.join(work, 'text-layer.pdf');
+        await qpdf.merge(layer, results, work);
+        await qpdf.overlay(file.path, layer, target, {}, work);
+        return { outputs: [target] };
+      } finally {
+        await fsp.rm(work, { recursive: true, force: true });
+      }
     },
   },
 

@@ -10,6 +10,10 @@ const { spawnSync } = require('child_process');
 const { findProgram } = require('../engines/run');
 const { engines } = require('../engines');
 const ffmpeg = require('../engines/ffmpeg');
+const tesseract = require('../engines/tesseract');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has('--dry-run');
@@ -22,11 +26,12 @@ const ENGINES = {
   imagemagick: 'converting images: PNG, JPEG, HEIC, TIFF, WebP...',
   ffmpeg: 'converting audio and video: MP3, M4A, WAV, MP4, WebM, GIF...',
   libreoffice: 'documents to PDF: Word, Excel, PowerPoint, OpenDocument... (a large download)',
+  tesseract: 'OCR: making scanned PDFs and pictures searchable',
 };
 
 // On macOS, Apple's PDFKit already does the PDF work, so mutool isn't needed.
 // LibreOffice is large (several hundred MB): --no-documents leaves it out.
-const wanted = (isMac && !args.has('--all') ? ['qpdf', 'imagemagick', 'ffmpeg', 'libreoffice'] : Object.keys(ENGINES))
+const wanted = (isMac && !args.has('--all') ? ['qpdf', 'imagemagick', 'ffmpeg', 'libreoffice', 'tesseract'] : Object.keys(ENGINES))
   .filter((name) => !(name === 'libreoffice' && args.has('--no-documents')));
 
 // Package names per package manager, and how to install with it.
@@ -36,7 +41,7 @@ const MANAGERS = [
   // LibreOffice comes as a Homebrew cask (an app), installed on its own.
   {
     name: 'brew',
-    packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: '--cask libreoffice' },
+    packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: '--cask libreoffice', tesseract: 'tesseract' },
     install: (p, broken) => {
       const casks = p.filter((name) => name.startsWith('--cask ')).map((name) => name.slice(7));
       const formulas = p.filter((name) => !name.startsWith('--cask '));
@@ -47,16 +52,16 @@ const MANAGERS = [
       ];
     },
   },
-  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-nogui' }, install: (p, broken) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...(broken.length ? ['--reinstall'] : []), ...p, ...broken]] },
-  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg-free', libreoffice: 'libreoffice' }, install: (p, broken) => [['dnf', 'install', '-y', ...p], ...(broken.length ? [['dnf', 'reinstall', '-y', ...broken]] : [])] },
-  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh' }, install: (p, broken) => [['pacman', '-S', '--noconfirm', ...p, ...broken]] },
-  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice' }, install: (p, broken) => [['zypper', 'install', '-y', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
+  { name: 'apt-get', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-nogui', tesseract: 'tesseract-ocr' }, install: (p, broken) => [['apt-get', 'update'], ['apt-get', 'install', '-y', ...(broken.length ? ['--reinstall'] : []), ...p, ...broken]] },
+  { name: 'dnf', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg-free', libreoffice: 'libreoffice', tesseract: 'tesseract' }, install: (p, broken) => [['dnf', 'install', '-y', ...p], ...(broken.length ? [['dnf', 'reinstall', '-y', ...broken]] : [])] },
+  { name: 'pacman', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf-tools', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh', tesseract: 'tesseract' }, install: (p, broken) => [['pacman', '-S', '--noconfirm', ...p, ...broken]] },
+  { name: 'zypper', sudo: true, packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'ImageMagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice', tesseract: 'tesseract-ocr' }, install: (p, broken) => [['zypper', 'install', '-y', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
   {
     name: 'winget',
-    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick', ffmpeg: 'Gyan.FFmpeg', libreoffice: 'TheDocumentFoundation.LibreOffice' },
+    packages: { qpdf: 'QPDF.QPDF', mutool: 'ArtifexSoftware.mutool', imagemagick: 'ImageMagick.ImageMagick', ffmpeg: 'Gyan.FFmpeg', libreoffice: 'TheDocumentFoundation.LibreOffice', tesseract: 'UB-Mannheim.TesseractOCR' },
     install: (p, broken) => [...p, ...broken].map((id) => ['winget', 'install', '--id', id, '--exact', '--silent', '--force', '--accept-source-agreements', '--accept-package-agreements', '--disable-interactivity']),
   },
-  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh' }, install: (p, broken) => [['choco', 'install', '-y', '--no-progress', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
+  { name: 'choco', packages: { qpdf: 'qpdf', mutool: 'mupdf', imagemagick: 'imagemagick', ffmpeg: 'ffmpeg', libreoffice: 'libreoffice-fresh', tesseract: 'tesseract' }, install: (p, broken) => [['choco', 'install', '-y', '--no-progress', ...(broken.length ? ['--force'] : []), ...p, ...broken]] },
 ];
 
 const MANUAL = {
@@ -65,6 +70,7 @@ const MANUAL = {
   imagemagick: 'https://imagemagick.org/script/download.php',
   ffmpeg: 'https://ffmpeg.org/download.html',
   libreoffice: 'https://www.libreoffice.org/download/',
+  tesseract: 'https://tesseract-ocr.github.io/tessdoc/Installation.html',
 };
 
 function pickManager() {
@@ -83,6 +89,38 @@ function run(command) {
   const result = spawnSync(program, rest, { stdio: 'inherit' });
   if (result.error) console.error(result.error.message);
   return result.status === 0;
+}
+
+// Tesseract's language models, from its own repository, pinned to a release:
+// each is downloaded only if it's missing or not the expected file, and
+// kept only if its SHA-256 matches.
+async function downloadModels() {
+  if (!wanted.includes('tesseract')) return true;
+  fs.mkdirSync(tesseract.TESSDATA, { recursive: true });
+  const sha256 = (data) => crypto.createHash('sha256').update(data).digest('hex');
+  const missing = Object.entries(tesseract.MODELS).filter(([lang, hash]) => {
+    const file = path.join(tesseract.TESSDATA, `${lang}.traineddata`);
+    return !fs.existsSync(file) || sha256(fs.readFileSync(file)) !== hash;
+  });
+  if (!missing.length) return true;
+  console.log(`\nDownloading OCR language models (${missing.map(([lang]) => lang).join(', ')}) from ${tesseract.MODELS_URL}...`);
+  if (dryRun) return true;
+  let ok = true;
+  for (const [lang, hash] of missing) {
+    try {
+      const response = await fetch(`${tesseract.MODELS_URL}/${lang}.traineddata`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = Buffer.from(await response.arrayBuffer());
+      if (sha256(data) !== hash) throw new Error('the file is not the expected one (SHA-256 differs)');
+      const file = path.join(tesseract.TESSDATA, `${lang}.traineddata`);
+      fs.writeFileSync(`${file}.part`, data);
+      fs.renameSync(`${file}.part`, file);
+    } catch (err) {
+      console.error(`  ${lang}: ${err.message}`);
+      ok = false;
+    }
+  }
+  return ok;
 }
 
 // ffmpeg is only counted once it has been seen to start.
@@ -108,7 +146,14 @@ async function main() {
   }
 
   console.log('Shiftdeck setup: checking the programs its tools use...');
+  // The models don't need Tesseract itself, and without them Tesseract
+  // would look missing.
+  const modelsOk = await downloadModels();
   const missing = await report();
+  if (!modelsOk) {
+    console.error('\nSome OCR language models could not be downloaded: check the connection and run npm run setup again.');
+    if (!missing.length) process.exit(1);
+  }
   if (!missing.length) {
     console.log('\nEverything is installed. Start Shiftdeck with: npm start');
     return;
@@ -121,8 +166,9 @@ async function main() {
     process.exit(1);
   }
 
-  // Installed but not starting: reinstalled rather than installed.
-  const broken = missing.filter((name) => findProgram(name));
+  // Installed but not starting: reinstalled rather than installed. (A
+  // Tesseract without its language models isn't broken: they come next.)
+  const broken = missing.filter((name) => findProgram(name) && name !== 'tesseract');
   const absent = missing.filter((name) => !broken.includes(name));
   console.log(`\nInstalling ${missing.join(', ')} with ${manager.name}...`);
   const needsSudo = manager.sudo && typeof process.getuid === 'function' && process.getuid() !== 0;

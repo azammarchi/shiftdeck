@@ -504,6 +504,44 @@ describe('Documents to PDF', { skip: !engines().libreoffice && 'LibreOffice is n
   });
 });
 
+// The text a PDF holds, page by page: PDFKit on macOS, mutool elsewhere.
+async function textOf(pdf) {
+  if (engines().pdfkit) return (await require('../engines/pdfkit').pdfkit('text', [pdf])).pages.join('\n');
+  return execFileSync(findProgram('mutool'), ['draw', '-q', '-F', 'txt', '-o', '-', pdf], { encoding: 'utf8' });
+}
+
+describe('Make searchable (OCR)', { skip: !engines().tesseract && 'Tesseract is not installed' }, () => {
+  test('a scanned PDF gets its text back, and its pages stay as they were', async () => {
+    assert.doesNotMatch(await textOf(sample('scan.pdf')), /scanner/i, 'the scan has no text to begin with');
+    const seen = [];
+    const { outputs } = await runTool('ocr', [input('scan.pdf')], { languages: ['eng'] }, outDir(), { onProgress: (p) => seen.push(p) });
+    assert.equal(path.basename(outputs[0]), 'scan-searchable.pdf');
+    assert.match(await textOf(outputs[0]), /Shiftdeck scanner test/i);
+    assert.match(await textOf(outputs[0]), /lazy dog/i);
+    assert.deepEqual(await sizes(outputs[0]), await sizes(sample('scan.pdf')));
+    assert.equal(seen.at(-1), 1);
+  });
+
+  test('the text alone comes out as a .txt file, from a PDF or a picture', async () => {
+    for (const name of ['scan.pdf', 'scan.png']) {
+      const { outputs } = await run('ocr', [name], { output: 'text', languages: 'eng+ita' });
+      assert.equal(path.basename(outputs[0]), 'scan.txt');
+      assert.match(fs.readFileSync(outputs[0], 'utf8'), /quick brown fox/i, name);
+    }
+  });
+
+  test('a picture becomes a searchable PDF', async () => {
+    const { outputs } = await run('ocr', ['scan.png'], { languages: ['eng'] });
+    assert.match(await textOf(outputs[0]), /Shiftdeck scanner test/i);
+  });
+
+  test('languages must be ones this computer has', async () => {
+    await rejectsWith(run('ocr', ['scan.pdf'], { languages: ['xyz'] }), 'badOption');
+    await rejectsWith(run('ocr', ['scan.pdf'], { languages: [] }), 'badOption');
+    assert.ok(require('../engines/tesseract').languages().includes('ita'));
+  });
+});
+
 test('with no engine at all, tools say what to install', () => withEnv(['pdfkit', 'qpdf', 'mutool', 'imagemagick'], async () => {
   await rejectsWith(run('merge', ['three-pages.pdf', 'two-pages.pdf']), 'noEngine');
   await rejectsWith(run('images-to-pdf', ['p1.png']), 'noEngine');

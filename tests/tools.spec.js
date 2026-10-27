@@ -235,6 +235,22 @@ test.describe('watermarks and compression', () => {
   });
 });
 
+test.describe('OCR', () => {
+  test.skip(() => !engines().tesseract, 'Tesseract is not installed');
+
+  test('read the text of a scan, with the languages picked', async ({ page }) => {
+    await pickTool(page, 'ocr');
+    await expect(page.getByLabel('English')).toBeChecked();
+    await expect(page.getByLabel('Italian')).not.toBeChecked();
+    await page.getByLabel('Italian').check();
+    await page.locator('#ocrOutputSelect').selectOption('text');
+    await addFiles(page, ['scan.pdf']);
+    await convert(page);
+    const file = await download(page, 'scan.txt');
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/Shiftdeck scanner test/i);
+  });
+});
+
 test.describe('documents', () => {
   test.skip(() => !engines().libreoffice, 'LibreOffice is not installed');
 

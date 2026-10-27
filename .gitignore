@@ -4,6 +4,9 @@ node_modules/
 # Local Claude Code settings
 .claude/
 
+# Language models for OCR, downloaded by npm run setup
+data/
+
 # Playwright output
 test-results/
 playwright-report/

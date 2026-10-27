@@ -214,6 +214,23 @@ async function makeDocumentSamples(file) {
   fs.writeFileSync(file('readme.txt'), 'Shiftdeck test document\n'.repeat(40));
 }
 
+// A scan for OCR: a page of real text, rendered to a picture (so only
+// pixels are left) and made back into a PDF, like a scanner would.
+async function makeScanSamples(file) {
+  const { writePdf } = require('../engines/pdfwrite');
+  const source = file('ocr-source.pdf');
+  const lines = ['Shiftdeck scanner test', 'The quick brown fox', 'jumps over the lazy dog'];
+  await writePdf(source, [{ width: 595, height: 842, draw: lines.map((text, i) => ({ text, x: 60, y: 700 - i * 60, size: 32 })) }]);
+  const out = file('making-scan');
+  fs.mkdirSync(out, { recursive: true });
+  const { outputs } = await runTool('pdf-to-images', [{ path: source, name: 'scan.pdf' }], { format: 'png', dpi: 150 }, out);
+  fs.renameSync(outputs[0], file('scan.png'));
+  const pdf = await runTool('images-to-pdf', [{ path: file('scan.png'), name: 'scan.png' }], { pageSize: 'a4' }, out);
+  fs.renameSync(pdf.outputs[0], file('scan.pdf'));
+  fs.rmSync(out, { recursive: true });
+  fs.rmSync(source);
+}
+
 async function makeSampleFiles() {
   fs.rmSync(DIR, { recursive: true, force: true });
   fs.mkdirSync(DIR, { recursive: true });
@@ -241,6 +258,7 @@ async function makeSampleFiles() {
   await writePhotoPdf(file('photo.pdf'));
   await makeMediaSamples(file);
   await makeDocumentSamples(file);
+  await makeScanSamples(file);
   return DIR;
 }
 

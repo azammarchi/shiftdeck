@@ -202,6 +202,9 @@ input[type="text"], input[type="password"], input[type="number"], select {
   color: var(--text);
   font: inherit;
 }
+.checkbox-group { margin: 0; padding: 0; border: 0; }
+.checkbox-group legend { padding: 0 0 6px; font-weight: 600; }
+.checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; }
 .checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 
 .notice { margin: 0; padding: 10px 14px; border-radius: 8px; border-left: 4px solid; background: var(--panel-hi); }

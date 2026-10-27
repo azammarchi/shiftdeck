@@ -47,6 +47,7 @@ npm start
 - 🎵 **Convert audio** between MP3, M4A, OGG, Opus, FLAC and WAV, or take the sound out of a video
 - 🎬 **Convert video** to MP4, WebM, MOV or GIF, smaller (720p, 480p…) or without sound, with a progress bar and a Cancel button
 - 📄 **Images to PDF**: PNG, JPEG, **HEIC** (iPhone photos), TIFF, GIF, BMP, WebP, one per page, on A4 or Letter pages turned to match each image, at full resolution
+- 🔎 **Make searchable (OCR)**: read the text in scanned PDFs and photos of documents, in 12 languages, so it can be searched, selected and copied; the pages keep looking exactly the same. Or get just the text, as a `.txt` file
 - 🔢 **Page numbers**: "1", "1 / 12" or "Page 1 of 12", in any corner or centred, from any number, with or without the first page
 - ✍️ **Sign**: draw your signature with the mouse, a finger or a pen (or type your name) and place it on any page; only the ink goes on the page. It's a drawn signature, not a certified digital one
 - 💧 **Watermark**: a faint DRAFT or CONFIDENTIAL (or any text) across every page, diagonal or horizontal
@@ -90,6 +91,7 @@ The page in your browser sends your files to a small server on your own computer
 | [ImageMagick](https://imagemagick.org) | Converting and reading images (HEIC included) | Homebrew | ✓ | ✓ |
 | [FFmpeg](https://ffmpeg.org) | Converting audio and video | Homebrew | ✓ | ✓ |
 | [LibreOffice](https://www.libreoffice.org) | Documents to PDF | Homebrew (cask) | ✓ | ✓ |
+| [Tesseract](https://github.com/tesseract-ocr/tesseract) | OCR, with its language models for 12 languages | Homebrew | ✓ | ✓ |
 | PDFKit (Apple) | Every PDF tool | built in | – | – |
 
 On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, so `npm run setup` adds only qpdf (for strong passwords), ImageMagick (for images) and FFmpeg (for audio and video) there. If an engine is installed but doesn't start (a library it needs was updated, say), the app counts it as missing and `npm run setup` reinstalls it. When the server starts it prints which engines it found; a tool whose engine is missing says so in the app and tells you to run `npm run setup`.
@@ -99,7 +101,7 @@ On macOS, Apple's PDFKit, built into every Mac, already does all the PDF work, s
 | `PORT=8080` | Use a different port |
 | `NO_OPEN=1` | Don't open the browser |
 | `KEEP_RUNNING=1` | Keep the server running after the last tab closes |
-| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`, `ffmpeg`, `libreoffice`) |
+| `SHIFTDECK_DISABLE_ENGINES=pdfkit` | Act as if an engine wasn't installed (`pdfkit`, `qpdf`, `mutool`, `imagemagick`, `ffmpeg`, `libreoffice`, `tesseract`) |
 
 ### Passwords
 
@@ -123,7 +125,6 @@ npm test
 
 ## Roadmap
 
-- **OCR**: make scanned PDFs searchable
 - **Certified digital signatures** (PAdES), with a certificate of your own
 - **Desktop integration**: right-click a file in Finder or Explorer to convert it
 - **More languages** for the interface
