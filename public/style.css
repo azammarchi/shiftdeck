@@ -50,7 +50,30 @@ h3 { margin: 0; font-size: 15px; }
 .brand img { display: block; }
 .tagline { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 
-.language { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+/* The language picker and its list. */
+.lang-picker { position: relative; }
+.lang-picker .chevron { width: 14px; height: 14px; color: var(--muted); }
+.menu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 200px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--panel-hi);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.menu li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.menu li:hover, .menu li:focus-visible { background: var(--panel-hi); outline: none; }
+.menu .check { margin-inline-start: auto; visibility: hidden; color: var(--accent); }
+.menu [aria-selected="true"] .check { visibility: visible; }
+.flag { width: 22px; height: 15px; flex: none; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); object-fit: cover; }
 
 main {
   flex: 1;
@@ -184,6 +207,8 @@ main {
 .page-actions { display: flex; justify-content: center; gap: 0; flex-wrap: wrap; }
 .page-actions .icon-button { width: 26px; height: 26px; }
 .page-actions .icon { width: 16px; height: 16px; }
+/* Earlier and later follow the reading direction: mirrored right to left. */
+[dir="rtl"] .page-actions [data-action="earlier"] .icon, [dir="rtl"] .page-actions [data-action="later"] .icon { transform: scaleX(-1); }
 
 /* Sign: the pad shows on a light, paper-like background, but what is drawn
    stays on a transparent canvas, so only the ink goes on the page. */
@@ -207,7 +232,7 @@ input[type="text"], input[type="password"], input[type="number"], select {
 .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; }
 .checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
 
-.notice { margin: 0; padding: 10px 14px; border-radius: 8px; border-left: 4px solid; background: var(--panel-hi); }
+.notice { margin: 0; padding: 10px 14px; border-radius: 8px; border-inline-start: 4px solid; background: var(--panel-hi); }
 .notice.warning { border-color: var(--warning); }
 .notice.info { border-color: var(--accent); }
 .notice.error { border-color: var(--error); margin: 16px 24px 0; }
@@ -220,9 +245,9 @@ input[type="text"], input[type="password"], input[type="number"], select {
 
 .status:empty { display: none; }
 .status { margin: 0; padding: 10px 14px; border-radius: 8px; background: var(--panel-hi); }
-.status.success { border-left: 4px solid var(--accent); }
-.status.warning { border-left: 4px solid var(--warning); }
-.status.error { border-left: 4px solid var(--error); }
+.status.success { border-inline-start: 4px solid var(--accent); }
+.status.warning { border-inline-start: 4px solid var(--warning); }
+.status.error { border-inline-start: 4px solid var(--error); }
 
 footer { padding: 16px 24px; color: var(--muted); font-size: 13px; text-align: center; }
 

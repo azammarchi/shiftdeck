@@ -31,6 +31,7 @@
       <symbol id="i-video" viewBox="0 0 24 24"><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3v10l-6-3"/></symbol>
       <symbol id="i-document" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5"/><path d="M8 13h8M8 17h5"/></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h5M14 3v5h5v3"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="m19 19 2.5 2.5"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
       <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></symbol>
       <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
       <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
@@ -48,10 +49,12 @@
       <h1 class="brand"><img src="logo.svg" alt="" width="34" height="34">Shiftdeck</h1>
       <p class="tagline" data-i18n="tagline"></p>
     </div>
-    <label class="language">
-      <span data-i18n="language"></span>
-      <select id="languageSelect"></select>
-    </label>
+    <div class="lang-picker">
+      <button type="button" id="languageButton" class="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="languageList">
+        <img class="flag" alt=""><span class="lang-name"></span><span class="visually-hidden" data-i18n="language"></span><svg class="icon chevron" aria-hidden="true"><use href="#i-down"/></svg>
+      </button>
+      <ul id="languageList" class="menu" role="listbox" data-i18n-label="language" hidden></ul>
+    </div>
   </header>
 
   <p id="engineNotice" class="notice error" role="alert" hidden></p>

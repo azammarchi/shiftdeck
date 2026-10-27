@@ -9,7 +9,7 @@ Shiftdeck aims to be usable by everyone, whether you use a mouse, a keyboard or 
 - **Contrast**: text meets the 4.5:1 ratio, including on the colored button.
 - **Visible focus**: a clear outline shows where the keyboard is.
 - **Reduced motion**: with "reduce motion" turned on, the app drops its transitions.
-- **Languages**: English and Italian, with the page language set for screen readers.
+- **Languages**: twelve, including right-to-left Arabic (the whole page turns around), with the page language set for screen readers. The language menu works from the keyboard: arrows, Home and End move, Enter picks, Esc closes.
 
 ## How it's checked
 

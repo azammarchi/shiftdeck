@@ -57,7 +57,7 @@ npm start
 - 🗂️ **Many files at once**: tools that work on one file do each of them in turn
 - 🗜️ **Download all** the results of a run as one ZIP
 - 💻 **macOS, Linux and Windows**
-- 🌐 **English and Italiano**, picked from your browser's language
+- 🌐 **12 languages**: English, Italiano, Español, Français, Deutsch, Português, Русский, 中文, 日本語, 한국어, हिन्दी, العربية (right to left), picked from your browser's language
 - ♿ **Accessible**: keyboard-only use, screen reader labels and announcements, WCAG 2.1 AA contrast ([details](ACCESSIBILITY.md))
 - 📦 **No npm dependencies**: plain HTML, CSS and JavaScript, plus well-known open-source converters
 
@@ -127,7 +127,6 @@ npm test
 
 - **Certified digital signatures** (PAdES), with a certificate of your own
 - **Desktop integration**: right-click a file in Finder or Explorer to convert it
-- **More languages** for the interface
 - **Installers** that need no terminal: a Homebrew tap, winget and a Linux package
 
 Ideas and help are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).

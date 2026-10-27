@@ -26,7 +26,8 @@ Where things live:
 | --- | --- |
 | `public/index.html` | Page structure, icons, tool options |
 | `public/app.js` | The interface: tools, files, running a tool, results |
-| `public/i18n.js` | All interface text, in every language |
+| `public/i18n.js` | The languages (names, flags, direction) and the code that loads and uses translations |
+| `public/locales/<code>.js` | All interface text, one file per language; `en.js` is the reference |
 | `public/demo.js` | The online demo: answers the app's requests inside the browser, for the tools a browser can do alone |
 | `public/style.css` | Styles |
 | `bin/shiftdeck.js` | The `shiftdeck` command: tools from a terminal, and the watched folder |
@@ -45,7 +46,7 @@ Where things live:
 1. Add the tool to `TOOLS` in `engines/index.js`: the extensions it accepts, whether it combines files or works on each one, and a `run` function that writes into the folder it gets.
 2. If it needs a program, add an engine module that finds it with `findProgram()` and runs it with `runProgram()` from `engines/run.js`, and add its packages to `scripts/setup.js` for every package manager there. **Never** run anything through a shell: file names are data a user chose, and an argument array keeps them that way. Secrets (passwords) never go on the command line, where `ps` shows them: use an environment variable or a file only the user can read, as the existing engines do.
 3. **It must work on macOS, Linux and Windows.** Pick programs that exist on all three (and are in their package managers); on macOS, what ships with the system can be used first, as PDFKit is. A tool's `needs()` lists missing engines, so the app can tell the user to run `npm run setup`.
-4. Add the tool's name, hint and options to `public/index.html` and `public/i18n.js`, then tests in both layers.
+4. Add the tool's name, hint and options to `public/index.html` and to every file in `public/locales/`, then tests in both layers.
 
 ### JavaScript for Automation gotchas
 
@@ -53,7 +54,7 @@ Where things live:
 
 ## Guidelines
 
-- **English only** for code, comments, docs and commit messages. Interface text goes in `public/i18n.js`, never directly in HTML or JavaScript.
+- **English only** for code, comments, docs and commit messages. Interface text goes in `public/locales/`, never directly in HTML or JavaScript.
 - **Keep it dependency-free.** No npm packages at runtime; outside programs only as engines that `npm run setup` installs.
 - **Add or update tests** for what you change. End-to-end tests use real mouse and keyboard input (`page.mouse`, `page.keyboard`, clicks) rather than synthetic events.
 - **Check every browser.** `npm test` runs WebKit (Safari's engine), Firefox and Chromium; CI runs the same on macOS, Linux and Windows for every pull request.
@@ -61,7 +62,9 @@ Where things live:
 
 ### Translations
 
-To change interface text, update the key in **every** language in `public/i18n.js` (a test fails if any language is missing a key). To add a language, copy the `en` block, set a new code and a `name`, and translate the strings.
+To change interface text, update the key in **every** file in `public/locales/` (a test fails if a language is missing a key, or if its `{placeholders}` differ from English). Counts use plural forms: `done_one`, `done_other`, and for languages with more forms `_two`, `_few`, `_many` (see [the CLDR plural rules](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html)).
+
+To add a language, add it to `LANGUAGES` in `public/i18n.js` with its `name` and a small SVG `flag` (and `dir: 'rtl'` for right-to-left languages), copy `public/locales/en.js` to `public/locales/<code>.js` and translate it. Only English and the chosen language are ever loaded. If Tesseract has a model for the language, add it to `MODELS` in `engines/tesseract.js` too, with its SHA-256, so OCR can read it.
 
 ### Commit messages
 

@@ -33,7 +33,7 @@ function formatSize(bytes) {
 
 function errorText(code, message, vars = {}) {
   const key = `err_${code}`;
-  return LANGUAGES.en.strings[key] ? t(key, { error: message, ...vars }) : t('err_generic', { error: message });
+  return STRINGS[DEFAULT_LANGUAGE][key] ? t(key, { error: message, ...vars }) : t('err_generic', { error: message });
 }
 
 function setStatus(text, kind = '') {
@@ -695,19 +695,74 @@ function showResults(outputs, bundle, warnings) {
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
+// The language picker: a button with the current flag, opening a list of
+// languages (a listbox: arrows, Home and End move, Enter or a click picks,
+// Esc or a click elsewhere closes).
+const flagUrl = (code) => `data:image/svg+xml,${encodeURIComponent(LANGUAGES[code].flag)}`;
+
+function showLanguage() {
+  const button = $('languageButton');
+  button.querySelector('.flag').src = flagUrl(currentLanguage);
+  button.querySelector('.lang-name').textContent = LANGUAGES[currentLanguage].name;
+  for (const item of $('languageList').children) item.setAttribute('aria-selected', String(item.dataset.code === currentLanguage));
+}
+
 function setUpLanguages() {
-  const select = $('languageSelect');
-  for (const [code, language] of Object.entries(LANGUAGES)) {
-    const option = document.createElement('option');
-    option.value = code;
-    option.textContent = language.name;
-    option.lang = code;
-    select.append(option);
+  const button = $('languageButton');
+  const list = $('languageList');
+  for (const [code, { name }] of Object.entries(LANGUAGES)) {
+    const item = document.createElement('li');
+    item.setAttribute('role', 'option');
+    item.tabIndex = -1;
+    item.lang = code;
+    item.dataset.code = code;
+    item.innerHTML = '<img class="flag" alt=""><span></span><svg class="icon check" aria-hidden="true"><use href="#i-check"/></svg>';
+    item.querySelector('img').src = flagUrl(code);
+    item.querySelector('span').textContent = name;
+    list.append(item);
   }
-  select.value = currentLanguage;
-  select.addEventListener('change', () => {
-    setLanguage(select.value);
+  showLanguage();
+
+  const items = () => [...list.children];
+  const close = (restoreFocus) => {
+    list.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) button.focus();
+  };
+  const open = () => {
+    list.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    (items().find((item) => item.dataset.code === currentLanguage) || items()[0]).focus();
+  };
+  const choose = async (code) => {
+    close(true);
+    await setLanguage(code);
+    showLanguage();
     selectTool(state.tool);
+  };
+
+  button.addEventListener('click', () => (list.hidden ? open() : close(false)));
+  list.addEventListener('click', (e) => {
+    const item = e.target.closest('li');
+    if (item) choose(item.dataset.code);
+  });
+  list.addEventListener('keydown', (e) => {
+    const all = items();
+    const at = all.indexOf(document.activeElement);
+    const move = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: all.length - 1 }[e.key];
+    if (move !== undefined) {
+      e.preventDefault();
+      all[(move + all.length) % all.length].focus();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (all[at]) choose(all[at].dataset.code);
+    } else if (e.key === 'Escape' || e.key === 'Tab') {
+      if (e.key === 'Escape') e.preventDefault();
+      close(e.key === 'Escape');
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (!list.hidden && !e.target.closest('.lang-picker')) close(false);
   });
 }
 
@@ -749,6 +804,9 @@ async function loadStatus() {
 }
 
 async function init() {
+  // English is the fallback for anything a translation lacks.
+  await Promise.all([loadLanguage(DEFAULT_LANGUAGE), loadLanguage(startLanguage)]);
+  currentLanguage = startLanguage;
   applyTranslations();
   setUpLanguages();
   setUpDragAndDrop();
