@@ -60,7 +60,7 @@ jobs:
       # The browsers are cached between runs, keyed by the Playwright version in
       # the lock file.
       - id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ matrix.browsers }}
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
