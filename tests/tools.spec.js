@@ -154,6 +154,10 @@ test('organize pages works on one PDF, and keeps at least one page', async ({ pa
 
   await page.locator('#clearButton').click();
   await addFiles(page, ['two-pages.pdf', 'mixed.pdf']);
+  // Wait for the first PDF's thumbnails, as a person would see them: arriving
+  // mid-click, they push Convert 230 px down between press and release, and
+  // the release lands on a thumbnail instead (seen on a busy CI runner).
+  await expect(page.locator('.page-card')).toHaveCount(2);
   await convert(page);
   await expect(page.locator('#status')).toHaveText('This tool works on one PDF at a time: remove the others.');
 });
